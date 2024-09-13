@@ -1,8 +1,9 @@
-name: ai2es
+name: cat
 channels:
   - conda-forge
 dependencies:
-  - python=3.8
+  - python=3.12
+  - setuptools
   - numpy
   - scipy
   - matplotlib
@@ -12,6 +13,7 @@ dependencies:
   - pandas
   - scikit-learn
   - pyyaml
+  - pyarrow
   - pytest
   - distributed
   - pip
@@ -23,7 +25,9 @@ dependencies:
   - sphinx
   - numba
   - cython
+  - scikit-mobility
+  - shapely
+  - folium
+  - zarr
   - pip:
-    - tensorflow
-    - tensorflow-probability
     - .
