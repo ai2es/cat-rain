@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cat-rain"
+authors = [{name = "University Corporation for Atmospheric Research, AI2ES", email = "milescore@ucar.edu"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+dynamic = ["version"]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "xarray",
+    "netcdf4",
+    "dask",
+    "pandas",
+    "scikit-learn",
+    "pyyaml",
+    "pyarrow",
+    "pytest",
+    "distributed",
+    "pip",
+    "pyproj",
+    "jupyter",
+    "jupyterlab",
+    "cartopy",
+    "tqdm",
+    "sphinx",
+    "numba",
+    "cython",
+    "scikit-mobility",
+    "shapely",
+    "folium",
+    "zarr",
+    ]
+
+
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.dynamic]
+version = {file = "src/VERSION"}
+readme = {file = ["README.md"]}
+
+[tool.ruff]
+lint.pydocstyle.convention = "google"
