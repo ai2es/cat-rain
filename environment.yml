@@ -29,5 +29,6 @@ dependencies:
   - shapely
   - folium
   - zarr
+  - statsmodels
   - pip:
     - .
