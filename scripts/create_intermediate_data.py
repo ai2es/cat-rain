@@ -13,14 +13,16 @@ end = "2024-03-31"
 dates = pd.date_range(start, end, freq='1d')
 date_str = dates.strftime("%Y/%m/%d/")
 
-
-def load_data(file_path, columns):
+def load_data(file_path):
     """Loads a parquet file, converts datatypes, and converts to PST time."""
 
+    columns = ['utc_timestamp', 'caid', 'id_type', 'latitude', 'longitude', 'horizontal_accuracy', 'geo_fields']
     df = pd.read_parquet(file_path, columns=columns)
     df = df.astype({'latitude': np.float32, 'longitude': np.float32})
     df['horizontal_accuracy'] = pd.to_numeric(df['horizontal_accuracy']).astype('int16')
     df['utc_timestamp'] = df['utc_timestamp'].dt.tz_localize('utc').dt.tz_convert('US/Pacific')
+    df['zipcode'] = [df['geo_fields'].iloc[x][2][1] for x in range(len(df))]
+    df['city'] = [df['geo_fields'].iloc[x][1][1] for x in range(len(df))]
 
     return df.rename(columns={'utc_timestamp': 'datetime'}).sort_values(["caid", "datetime"])
 
