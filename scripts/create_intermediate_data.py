@@ -55,8 +55,10 @@ for i, date in enumerate(date_str):
 
         ### get current and previous from same UTC date
         previous_day_PST = current_df[current_df['datetime'].dt.day == unique_days.min()]
-        merged_days_PST = pd.concat([current_day_PST, previous_day_PST]).sort_values(["caid", "datetime"])
-        merged_days_PST.to_parquet(file_out_path)
+        merged_days_PST = pd.concat([current_day_PST, previous_day_PST])
+        sorted_data = merged_days_PST.groupby('caid').apply(lambda x: x.sort_values(by="datetime"),
+                                                            include_groups=False).droplevel(1)
+        sorted_data.to_parquet(file_out_path)
 
         current_day_PST = current_df[current_df['datetime'].dt.day == unique_days.max()]
 
