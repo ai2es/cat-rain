@@ -59,7 +59,3 @@ for i, date in enumerate(date_str):
     print(f"Wrote {file_out_path} in {np.round((time.time() - s) / 60, 2)} minutes.")
 
 
-
-
-
-
