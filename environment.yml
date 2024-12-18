@@ -10,7 +10,7 @@ dependencies:
   - xarray
   - netcdf4
   - dask
-  - pandas
+  - pandas=2.2.3
   - scikit-learn
   - pyyaml
   - pyarrow
@@ -25,10 +25,13 @@ dependencies:
   - sphinx
   - numba
   - cython
-  - scikit-mobility
   - shapely
   - folium
   - zarr
   - statsmodels
+  - plotly
+  # - fiona
+  # - pyproj urllib3 chardet markupsafe
   - pip:
+    - git+https://github.com/scikit-mobility/scikit-mobility.git
     - .
