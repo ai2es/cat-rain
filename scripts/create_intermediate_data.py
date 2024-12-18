@@ -3,26 +3,24 @@ import numpy as np
 from glob import glob
 from os.path import join
 from multiprocessing import Pool
-import multiprocessing
+import time, multiprocessing
 
 
-base_path = "/glade/derecho/scratch/dgagne/veraset_cat/"
-out_path = "/glade/derecho/scratch/cbecker/"
-start = "2024-03-20"
-end = "2024-03-31"
+base_path = "/glade/derecho/scratch/cbecker/movement_premium/"
+out_path = "/glade/derecho/scratch/ggantos/movement_premium/"
+start = "2024-04-01"
+end = "2024-04-30"
 dates = pd.date_range(start, end, freq='1d')
 date_str = dates.strftime("%Y/%m/%d/")
 
 def load_data(file_path):
     """Loads a parquet file, converts datatypes, and converts to PST time."""
 
-    columns = ['utc_timestamp', 'caid', 'id_type', 'latitude', 'longitude', 'horizontal_accuracy', 'geo_fields']
+    columns = ['utc_timestamp', 'caid', 'id_type', 'latitude', 'longitude', 'horizontal_accuracy']
     df = pd.read_parquet(file_path, columns=columns)
     df = df.astype({'latitude': np.float32, 'longitude': np.float32})
     df['horizontal_accuracy'] = pd.to_numeric(df['horizontal_accuracy']).astype('int16')
     df['utc_timestamp'] = df['utc_timestamp'].dt.tz_localize('utc').dt.tz_convert('US/Pacific')
-    df['zipcode'] = [df['geo_fields'].iloc[x][2][1] for x in range(len(df))]
-    df['city'] = [df['geo_fields'].iloc[x][1][1] for x in range(len(df))]
 
     return df.rename(columns={'utc_timestamp': 'datetime'}).sort_values(["caid", "datetime"])
 
@@ -30,6 +28,7 @@ def load_data(file_path):
 
 for i, date in enumerate(date_str):
 
+    t0 = time.time()
     file_out_path = join(out_path, f"veraset_{dates[i].strftime('%Y-%m-%d')}_PST.parquet")
     current_files = sorted(glob(base_path + date + "*.parquet"))
 
@@ -67,9 +66,6 @@ for i, date in enumerate(date_str):
         current_day_PST.sort_values(["caid", "datetime"]).to_parquet(file_out_path)
 
     print(f"Wrote {file_out_path}")
-
-
-
-
-
-
+    t1 = time.time()
+    delta = t1-t0
+    print(f"TIME PER DAY: {delta // 3600 % 24:02.0f}:{delta // 60 % 60:02.0f}:{delta % 60:02.0f}")
