@@ -44,7 +44,7 @@ def ensure_list(obj):
 
 
 def func_w_kwargs(func, kwargs=None):
-
+    """ Return specified funciton with static key word arguments for parallel processing. Also supports no kwargs."""
     if kwargs is not None:
         return partial(func, **kwargs)
     else:
@@ -88,7 +88,7 @@ class DataProcessor():
     # #     """
 
 ###################### FILTERING ###########################
-def get_row_groups(row_group, **kwargs):
+def get_row_groups(row_group):
     """ Read a specific row group across all files. """
     files = data_class.data_files
     meta = data_class.meta
@@ -99,23 +99,27 @@ def get_row_groups(row_group, **kwargs):
         return df_row_groups
 
 
-def get_row_group_trajectories(row_group, **kwargs):
+def get_row_group_trajectories(row_group):
     """ Read the row group from all files and return a skmobility Trajectory DataFrame """
-    dfs = get_row_groups(row_group, **kwargs)
+    dfs = get_row_groups(row_group)
     tdf = [TrajDataFrame(x.reset_index(), latitude='latitude', longitude='longitude', datetime='datetime',
                         user_id='caid') for x in dfs]
 
     return tdf
 
 def filter_tdf(row_group, **kwargs):
-
-    tdfs = get_row_group_trajectories(row_group, **kwargs)
+    """ Filter TrajDataFrames. See below for kwargs
+    https://scikit-mobility.github.io/scikit-mobility/reference/preprocessing.html#skmob.preprocessing.filtering.filter
+    """
+    tdfs = get_row_group_trajectories(row_group)
 
     return [filtering.filter(tdf, **kwargs) for tdf in tdfs]
 
 def compress_tdf(row_group, **kwargs):
-
-    tdfs = get_row_group_trajectories(row_group, **kwargs)
+    """ Compress / filter TrajDataFrames. See below for kwargs
+    https://scikit-mobility.github.io/scikit-mobility/reference/preprocessing.html#skmob.preprocessing.compression.compress
+    """
+    tdfs = get_row_group_trajectories(row_group)
 
     return [compression.compress(tdf, **kwargs) for tdf in tdfs]
 
@@ -124,16 +128,16 @@ def compress_tdf(row_group, **kwargs):
 def get_home_location(row_group, **kwargs):
     """ Read the row group from all files and return the home location of each user. """
 
-    tdfs = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return [individual.home_location(tdf, show_progress=False) for tdf in tdfs]
+    return [individual.home_location(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
 def get_jump_lengths(row_group, **kwargs):
     """ Read the row group from all files and return the home location of each user. """
 
-    tdf = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return individual.jump_lengths(tdf, show_progress=False, merge=False)
+    return [individual.jump_lengths(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
 
 def get_radius_of_gyration(row_group, **kwargs):
@@ -141,9 +145,9 @@ def get_radius_of_gyration(row_group, **kwargs):
     https://scikit-mobility.github.io/scikit-mobility/reference/individual_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return individual.radius_of_gyration(tdf, show_progress=False)
+    return [individual.radius_of_gyration(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
 
 def get_max_distance_from_home(row_group, **kwargs):
@@ -151,9 +155,9 @@ def get_max_distance_from_home(row_group, **kwargs):
     https://scikit-mobility.github.io/scikit-mobility/reference/individual_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return individual.max_distance_from_home(tdf, show_progress=False)
+    return [individual.max_distance_from_home(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
 
 def get_real_entropy(row_group, **kwargs):
@@ -161,9 +165,9 @@ def get_real_entropy(row_group, **kwargs):
     https://scikit-mobility.github.io/scikit-mobility/reference/individual_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return individual.real_entropy(tdf, show_progress=False)
+    return [individual.real_entropy(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
 
 def get_uncorrelated_entropy(row_group, **kwargs):
@@ -171,9 +175,9 @@ def get_uncorrelated_entropy(row_group, **kwargs):
     https://scikit-mobility.github.io/scikit-mobility/reference/individual_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return individual.uncorrelated_entropy(tdf, show_progress=False)
+    return [individual.uncorrelated_entropy(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
 ############### COLLECTIVE MEASURES ##################
 
@@ -183,9 +187,9 @@ def get_collective_uncorrelated_entropy(row_group, **kwargs):
     https://scikit-mobility.github.io/scikit-mobility/reference/collective_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return collective.uncorrelated_location_entropy(tdf, show_progress=False)
+    return [collective.uncorrelated_location_entropy(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
 
 def get_collective_random_entropy(row_group, **kwargs):
@@ -194,9 +198,9 @@ def get_collective_random_entropy(row_group, **kwargs):
     https://scikit-mobility.github.io/scikit-mobility/reference/collective_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return collective.random_location_entropy(tdf, show_progress=False)
+    return [collective.random_location_entropy(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
 
 def get_mean_square_displacement(row_group, **kwargs):
@@ -205,9 +209,9 @@ def get_mean_square_displacement(row_group, **kwargs):
     https://scikit-mobility.github.io/scikit-mobility/reference/collective_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group, **kwargs)
+    tdfs = get_row_group_trajectories(row_group)
 
-    return collective.mean_square_displacement(tdf, show_progress=False)
+    return [collective.mean_square_displacement(tdf, show_progress=False, **kwargs) for tdf in tdfs]
 
  # Due to serialization issues resulting in slow downs when processing in parallel, this class instance is initialized
  # here and imported directly in calc_metrics.py where it can be modified.
