@@ -130,14 +130,14 @@ def get_home_location(row_group, **kwargs):
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [individual.home_location(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [individual.home_location(tdf, **kwargs) for tdf in tdfs]
 
 def get_jump_lengths(row_group, **kwargs):
     """ Read the row group from all files and return the home location of each user. """
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [individual.jump_lengths(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [individual.jump_lengths(tdf, **kwargs) for tdf in tdfs]
 
 
 def get_radius_of_gyration(row_group, **kwargs):
@@ -147,7 +147,7 @@ def get_radius_of_gyration(row_group, **kwargs):
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [individual.radius_of_gyration(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [individual.radius_of_gyration(tdf, **kwargs) for tdf in tdfs]
 
 
 def get_max_distance_from_home(row_group, **kwargs):
@@ -157,7 +157,7 @@ def get_max_distance_from_home(row_group, **kwargs):
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [individual.max_distance_from_home(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [individual.max_distance_from_home(tdf, **kwargs) for tdf in tdfs]
 
 
 def get_real_entropy(row_group, **kwargs):
@@ -167,7 +167,7 @@ def get_real_entropy(row_group, **kwargs):
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [individual.real_entropy(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [individual.real_entropy(tdf, **kwargs) for tdf in tdfs]
 
 
 def get_uncorrelated_entropy(row_group, **kwargs):
@@ -177,7 +177,7 @@ def get_uncorrelated_entropy(row_group, **kwargs):
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [individual.uncorrelated_entropy(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [individual.uncorrelated_entropy(tdf, **kwargs) for tdf in tdfs]
 
 ############### COLLECTIVE MEASURES ##################
 
@@ -189,7 +189,7 @@ def get_collective_uncorrelated_entropy(row_group, **kwargs):
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [collective.uncorrelated_location_entropy(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [collective.uncorrelated_location_entropy(tdf, **kwargs) for tdf in tdfs]
 
 
 def get_collective_random_entropy(row_group, **kwargs):
@@ -200,7 +200,7 @@ def get_collective_random_entropy(row_group, **kwargs):
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [collective.random_location_entropy(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [collective.random_location_entropy(tdf, **kwargs) for tdf in tdfs]
 
 
 def get_mean_square_displacement(row_group, **kwargs):
@@ -211,7 +211,7 @@ def get_mean_square_displacement(row_group, **kwargs):
 
     tdfs = get_row_group_trajectories(row_group)
 
-    return [collective.mean_square_displacement(tdf, show_progress=False, **kwargs) for tdf in tdfs]
+    return [collective.mean_square_displacement(tdf, **kwargs) for tdf in tdfs]
 
  # Due to serialization issues resulting in slow downs when processing in parallel, this class instance is initialized
  # here and imported directly in calc_metrics.py where it can be modified.
