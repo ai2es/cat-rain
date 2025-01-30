@@ -2,8 +2,9 @@ import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
 from skmob.core.trajectorydataframe import TrajDataFrame
-from skmob.measures import individual
-from skmob.preprocessing import filtering
+from skmob.measures import individual, collective
+from skmob.preprocessing import filtering, compression
+from functools import partial
 
 def get_files(data_path, data_prefix, start_date, end_date, days_of_week="all"):
     """
@@ -37,6 +38,19 @@ def get_files(data_path, data_prefix, start_date, end_date, days_of_week="all"):
     return data_files
 
 
+def ensure_list(obj):
+    """Ensures the returned object is always a list of DataFrames for consistency."""
+    return [obj] if isinstance(obj, pd.DataFrame) else obj
+
+
+def func_w_kwargs(func, kwargs=None):
+
+    if kwargs is not None:
+        return partial(func, **kwargs)
+    else:
+        return partial(func)
+
+
 class DataProcessor():
     """ Class that supports gathering all data for any number of row_groups in serial or parallel mode. Additionally,
     can calculate a wide variety of metric from a scikit-mobility Trajectory data frame.
@@ -59,6 +73,7 @@ class DataProcessor():
         self.n_row_groups = self.key_meta.num_row_groups
         self.all_row_groups = np.arange(self.n_row_groups)
         self.row_groups = None
+        self.parallel_agg = 'full'  # Currently supports "full" (over all data) and "daily" (per file).
 
     # depending on execution time, maybe do this upon init
     def load_key_file(self):
@@ -73,76 +88,127 @@ class DataProcessor():
     # #     """
 
 ###################### FILTERING ###########################
-def get_row_groups(row_group):
+def get_row_groups(row_group, **kwargs):
     """ Read a specific row group across all files. """
     files = data_class.data_files
     meta = data_class.meta
-    return pd.concat([pq.ParquetFile(f, metadata=m).read_row_group(row_group).to_pandas() for f, m in zip(files, meta)])
+    df_row_groups = [pq.ParquetFile(f, metadata=m).read_row_group(row_group).to_pandas() for f, m in zip(files, meta)]
+    if data_class.parallel_agg == 'full':
+        return ensure_list(pd.concat(df_row_groups))
+    elif data_class.parallel_agg == 'daily':
+        return df_row_groups
 
 
-def get_row_group_trajectories(row_group):
+def get_row_group_trajectories(row_group, **kwargs):
     """ Read the row group from all files and return a skmobility Trajectory DataFrame """
-    df = get_row_groups(row_group)
-    tdf = TrajDataFrame(df.reset_index(), latitude='latitude', longitude='longitude', datetime='datetime',
-                        user_id='caid')
+    dfs = get_row_groups(row_group, **kwargs)
+    tdf = [TrajDataFrame(x.reset_index(), latitude='latitude', longitude='longitude', datetime='datetime',
+                        user_id='caid') for x in dfs]
 
     return tdf
 
-def filter_tdf(row_group, max_speed_kmh=500.0, include_loops=False, speed_kmh=5.0, max_loop=6, ratio_max=0.25):
+def filter_tdf(row_group, **kwargs):
 
-def get_home_location(row_group):
+    tdfs = get_row_group_trajectories(row_group, **kwargs)
+
+    return [filtering.filter(tdf, **kwargs) for tdf in tdfs]
+
+def compress_tdf(row_group, **kwargs):
+
+    tdfs = get_row_group_trajectories(row_group, **kwargs)
+
+    return [compression.compress(tdf, **kwargs) for tdf in tdfs]
+
+################### INDIVIDUAL MEASURES ##############################
+
+def get_home_location(row_group, **kwargs):
     """ Read the row group from all files and return the home location of each user. """
 
-    tdf = get_row_group_trajectories(row_group)
+    tdfs = get_row_group_trajectories(row_group, **kwargs)
 
-    return individual.home_location(tdf, show_progress=False)
+    return [individual.home_location(tdf, show_progress=False) for tdf in tdfs]
 
-
-def get_jump_lengths(row_group):
+def get_jump_lengths(row_group, **kwargs):
     """ Read the row group from all files and return the home location of each user. """
 
-    tdf = get_row_group_trajectories(row_group)
+    tdf = get_row_group_trajectories(row_group, **kwargs)
 
     return individual.jump_lengths(tdf, show_progress=False, merge=False)
 
 
-def get_radius_of_gyration(row_group):
+def get_radius_of_gyration(row_group, **kwargs):
     """ Read the row group from all files and return the radius of gyration of each user.
     https://scikit-mobility.github.io/scikit-mobility/reference/individual_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group)
+    tdf = get_row_group_trajectories(row_group, **kwargs)
 
     return individual.radius_of_gyration(tdf, show_progress=False)
 
 
-def get_max_distance_from_home(row_group):
+def get_max_distance_from_home(row_group, **kwargs):
     """ Read the row group from all files and return the max distance from home of each user.
     https://scikit-mobility.github.io/scikit-mobility/reference/individual_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group)
+    tdf = get_row_group_trajectories(row_group, **kwargs)
 
     return individual.max_distance_from_home(tdf, show_progress=False)
 
 
-def get_real_entropy(row_group):
+def get_real_entropy(row_group, **kwargs):
     """ Read the row group from all files and return the real entropy of each user.
     https://scikit-mobility.github.io/scikit-mobility/reference/individual_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group)
+    tdf = get_row_group_trajectories(row_group, **kwargs)
 
     return individual.real_entropy(tdf, show_progress=False)
 
 
-def get_uncorrelated_entropy(row_group):
+def get_uncorrelated_entropy(row_group, **kwargs):
     """ Read the row group from all files and return the uncorrelated entropy of each user.
     https://scikit-mobility.github.io/scikit-mobility/reference/individual_measures.html
     """
 
-    tdf = get_row_group_trajectories(row_group)
+    tdf = get_row_group_trajectories(row_group, **kwargs)
 
     return individual.uncorrelated_entropy(tdf, show_progress=False)
 
+############### COLLECTIVE MEASURES ##################
+
+def get_collective_uncorrelated_entropy(row_group, **kwargs):
+    """ Read the row group from all files and return the uncorrelated collective entropy of each location. This is
+    likely best suited for data that has been previously compressed into coarser locations.
+    https://scikit-mobility.github.io/scikit-mobility/reference/collective_measures.html
+    """
+
+    tdf = get_row_group_trajectories(row_group, **kwargs)
+
+    return collective.uncorrelated_location_entropy(tdf, show_progress=False)
+
+
+def get_collective_random_entropy(row_group, **kwargs):
+    """ Read the row group from all files and return the random collective entropy of each location. This is
+    likely best suited for data that has been previously compressed into coarser locations.
+    https://scikit-mobility.github.io/scikit-mobility/reference/collective_measures.html
+    """
+
+    tdf = get_row_group_trajectories(row_group, **kwargs)
+
+    return collective.random_location_entropy(tdf, show_progress=False)
+
+
+def get_mean_square_displacement(row_group, **kwargs):
+    """ Read the row group from all files and return the mean square displacement. The mean squared displacement is a
+    measure of the deviation of the position of an object with respect to a reference position over time.
+    https://scikit-mobility.github.io/scikit-mobility/reference/collective_measures.html
+    """
+
+    tdf = get_row_group_trajectories(row_group, **kwargs)
+
+    return collective.mean_square_displacement(tdf, show_progress=False)
+
+ # Due to serialization issues resulting in slow downs when processing in parallel, this class instance is initialized
+ # here and imported directly in calc_metrics.py where it can be modified.
 data_class = DataProcessor()
