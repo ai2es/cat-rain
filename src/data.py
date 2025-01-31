@@ -7,37 +7,6 @@ from skmob.measures import individual, collective
 from skmob.preprocessing import filtering, compression
 from functools import partial
 
-def get_files(data_path, data_prefix, start_date, end_date, days_of_week="all"):
-    """
-    Retrieve the file names for a specified date range. Supports specification of
-    days of the week.
-
-    Args:
-        data_path (str): Base path to daily chunked parquet files
-        data_prefix (str): Prefix string for file names
-        start_date (str): Start date of file format of "YYYY-MM-DD"
-        end_date (str): End date of file format of "YYYY-MM-DD"
-        days_of_week (str / list): Days of week. Supports "all" and individual days of the week.
-            The following formats are required:
-                "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"
-
-            days_of_week=["TUE", "WED", "FRI"] is the correct format for all Tuesdays, Wednesdays, and Fridays
-            between the start and end dates (inclusive).
-    Returns (list):
-        List of matching file names
-    """
-    date_range = pd.date_range(start=start_date, end=end_date, freq='d')
-
-    if days_of_week == "all":
-        data_files = date_range.strftime(f"{data_path}{data_prefix}_%Y-%m-%d_PST_chunked.parquet")
-    else:
-        days = pd.date_range(start=start_date, end=end_date, freq=f"W-{days_of_week[0]}")
-        for d in days_of_week[1:]:
-            days = days.union(pd.date_range(start=start_date, end=end_date, freq=f"W-{d}"))
-        data_files = days.strftime(f"{data_path}{data_prefix}_%Y-%m-%d_PST_chunked.parquet")
-
-    return [file for file in data_files if os.path.isfile(file)]
-
 
 def ensure_list(obj):
     """Ensures the returned object is always a list of DataFrames for consistency."""
@@ -63,25 +32,80 @@ class DataProcessor():
         tdf = processor.get_row_group_trajectories(row_groups_of_interest)
         individual.home_location(tdf, show_progress=False) # gets home location for each user
     """
-    @classmethod
-    def set_values(self, data_files=None, key_file=None):
+    # @classmethod
+    def set_attrs(self, config):
 
-        self.data_files = data_files
-        self.key_file = key_file
-        self.meta = [pq.ParquetFile(x).metadata for x in data_files]
-        self.key_meta = pq.ParquetFile(key_file).metadata
+        for key, value in config.items():
+            setattr(self, key, value)
+
+        self.data_files = self.get_files()
+        self.meta = [pq.ParquetFile(x).metadata for x in self.data_files]
+        self.key_meta = pq.ParquetFile(self.key_file).metadata
         self.n_rows = self.key_meta.num_rows
         self.n_row_groups = self.key_meta.num_row_groups
-        self.all_row_groups = np.arange(self.n_row_groups)
-        self.row_groups = None
-        self.parallel_agg = 'full'  # Currently supports "full" (over all data) and "daily" (per file).
+        if self.row_group_start_end:
+            self.row_groups = np.arange(self.row_group_start_end[0], self.row_group_start_end[1], 1)
+        else:
+            self.row_groups = np.arange(self.n_row_groups)
 
-    # depending on execution time, maybe do this upon init
+        if isinstance(self.function, str):
+            self.func_str = self.function
+        else:
+            self.func_str = '_'.join(self.function)
+
+        if self.aggregation_type == "full":
+            fn = f"veraset_{self.function}_{self.start_date}_{self.end_date}.parquet"
+            self.save_out_files = os.path.join(self.save_out_path, fn)
+        elif self.aggregation_type == "daily":
+            self.save_out_files = [f"{self.function}_{f}" for f in self.data_files]
+
+
+    def get_files(self):
+        """
+        Retrieve the file names for a specified date range. Supports specification of
+        days of the week.
+
+        Args:
+            data_path (str): Base path to daily chunked parquet files
+            data_prefix (str): Prefix string for file names
+            start_date (str): Start date of file format of "YYYY-MM-DD"
+            end_date (str): End date of file format of "YYYY-MM-DD"
+            days_of_week (str / list): Days of week. Supports "all" and individual days of the week.
+                The following formats are required:
+                    "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"
+
+                days_of_week=["TUE", "WED", "FRI"] is the correct format for all Tuesdays, Wednesdays, and Fridays
+                between the start and end dates (inclusive).
+        Returns (list):
+            List of matching file names
+        """
+        date_range = pd.date_range(start=self.start_date, end=self.end_date, freq='d')
+
+        if self.days_of_week == "all":
+            data_files = date_range.strftime(f"{self.base_data_path}{self.data_prefix}_%Y-%m-%d_PST_chunked.parquet")
+        else:
+            days = pd.date_range(start=self.start_date, end=self.end_date, freq=f"W-{self.days_of_week[0]}")
+            for d in self.days_of_week[1:]:
+                days = days.union(pd.date_range(start=self.start_date, end=self.end_date, freq=f"W-{d}"))
+            data_files = days.strftime(f"{self.base_data_path}{self.data_prefix}_%Y-%m-%d_PST_chunked.parquet")
+
+        return [file for file in data_files if os.path.isfile(file)]
+
+
     def load_key_file(self):
         """ Load key file into memory for easier user_ID lookup"""
 
         self.key_data = pd.read_parquet(self.key_file)
 
+    def save_data_out(self, processed_data):
+
+        if self.parallel_agg == "full":
+            combined_data = pd.concat(processed_data[0][0])
+            combined_data.to_parquet(self.save_out_files)
+        elif self.parallel_agg == "daily":
+            combined_data = [pd.concat(processed_data[0][:][f]) for f in range(len(self.data_files))]
+            for data, file_name in zip(combined_data, self.save_out_files):
+                data.to_parquet(file_name)
 
     # # To do:
     # # def get_specified_user_data(self, user_id):
