@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import pyarrow.parquet as pq
+import os
 from skmob.core.trajectorydataframe import TrajDataFrame
 from skmob.measures import individual, collective
 from skmob.preprocessing import filtering, compression
@@ -35,7 +36,7 @@ def get_files(data_path, data_prefix, start_date, end_date, days_of_week="all"):
             days = days.union(pd.date_range(start=start_date, end=end_date, freq=f"W-{d}"))
         data_files = days.strftime(f"{data_path}{data_prefix}_%Y-%m-%d_PST_chunked.parquet")
 
-    return data_files
+    return [file for file in data_files if os.path.isfile(file)]
 
 
 def ensure_list(obj):
