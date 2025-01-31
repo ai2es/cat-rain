@@ -44,7 +44,7 @@ row_groups =data_class.row_groups
 f = func_w_kwargs(func, kwargs)
 
 s = time.time()
-with Pool(processors=n_processors) as pool:
+with Pool(processes=n_processors) as pool:
     result = pool.map_async(f, row_groups)
     results.append(result.get())
 

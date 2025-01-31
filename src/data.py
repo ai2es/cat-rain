@@ -57,7 +57,8 @@ class DataProcessor():
             fn = f"veraset_{self.function}_{self.start_date}_{self.end_date}.parquet"
             self.save_out_files = os.path.join(self.save_out_path, fn)
         elif self.aggregation_type == "daily":
-            self.save_out_files = [f"{self.function}_{f}" for f in self.data_files]
+            self.save_out_files = [os.path.join(self.save_out_path, f"{self.function}_{f.split('/')[-1]}")
+                                   for f in self.data_files]
 
 
     def get_files(self):
@@ -65,19 +66,8 @@ class DataProcessor():
         Retrieve the file names for a specified date range. Supports specification of
         days of the week.
 
-        Args:
-            data_path (str): Base path to daily chunked parquet files
-            data_prefix (str): Prefix string for file names
-            start_date (str): Start date of file format of "YYYY-MM-DD"
-            end_date (str): End date of file format of "YYYY-MM-DD"
-            days_of_week (str / list): Days of week. Supports "all" and individual days of the week.
-                The following formats are required:
-                    "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"
-
-                days_of_week=["TUE", "WED", "FRI"] is the correct format for all Tuesdays, Wednesdays, and Fridays
-                between the start and end dates (inclusive).
         Returns (list):
-            List of matching file names
+            List of matching file names that are confirmed to exist.
         """
         date_range = pd.date_range(start=self.start_date, end=self.end_date, freq='d')
 
@@ -99,10 +89,10 @@ class DataProcessor():
 
     def save_data_out(self, processed_data):
 
-        if self.parallel_agg == "full":
+        if self.aggregation_type == "full":
             combined_data = pd.concat(processed_data[0][0])
             combined_data.to_parquet(self.save_out_files)
-        elif self.parallel_agg == "daily":
+        elif self.aggregation_type == "daily":
             combined_data = [pd.concat(processed_data[0][:][f]) for f in range(len(self.data_files))]
             for data, file_name in zip(combined_data, self.save_out_files):
                 data.to_parquet(file_name)
@@ -118,9 +108,9 @@ def get_row_groups(row_group):
     files = data_class.data_files
     meta = data_class.meta
     df_row_groups = [pq.ParquetFile(f, metadata=m).read_row_group(row_group).to_pandas() for f, m in zip(files, meta)]
-    if data_class.parallel_agg == 'full':
+    if data_class.aggregation_type == 'full':
         return ensure_list(pd.concat(df_row_groups))
-    elif data_class.parallel_agg == 'daily':
+    elif data_class.aggregation_type == 'daily':
         return df_row_groups
 
 

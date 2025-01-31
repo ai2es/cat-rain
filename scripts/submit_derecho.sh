@@ -9,7 +9,7 @@
 #PBS -M cbecker@ucar.edu
 module load conda
 conda activate cat
-cd ./scripts
+
 #python -u create_intermediate_data.py
 #python -u chunk_data.py
 python -u calc_metrics.py -c ../config/process_conf.yaml
