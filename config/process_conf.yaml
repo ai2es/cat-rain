@@ -1,11 +1,11 @@
 base_data_path: ""
-data_prefix: "veraset"
+data_prefix: ""
 key_file: ""
 save_out_path: ""
-start_date: ""
-end_date: ""
-days_of_week: ["all"] # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" amd "all"
-row_group_start_end: [] # empty will use all row groups [start, end]
+start_date: "2024-03-14"
+end_date: "2024-05-01"
+days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" amd "all"
+row_group_start_end: [] # empty [] will use all row groups [start, end]
 aggregation_type: "full" # Supports "full" or "daily"
 n_workers: -1 # -1 to use all available CPU workers
 function: "home_location" # Should be assigned to one of the keys below which represent the key word arguments

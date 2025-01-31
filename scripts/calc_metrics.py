@@ -28,15 +28,7 @@ args = parser.parse_args()
 with open(args.config) as config_file:
     config = yaml.safe_load(config_file)
 
-# base_path = config["base_data_path"]
-# prefix = config["prefix"]
-# out_path = config["save_out_path"]
-# key_file = config["key_file"]
-# start = config["start_date"]
-# end = config["end_date"]
-# files = get_files(base_path, prefix, start, end, days_of_week=config["days_of_week"])
 data_class.set_attrs(config) # set class attributes for file list, key_file, and metadata
-# data_class.parallel_agg = config["aggregation_type"]
 func = available_funcs[config["function"]]
 kwargs = config["kwargs"][config["function"]]
 n_processors =  config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count()
