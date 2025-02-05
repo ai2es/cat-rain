@@ -23,10 +23,7 @@ results = []
 with Pool(processes=n_processors) as pool:
     result = pool.map_async(f, row_groups)
     results = result.get()
-# data_class.save_data_out(results)
-print(results[0])
-print(len(results))
-print(data_class.save_out_files)
-# print("LENGTH RESULTS", len(results))
+
+data_class.save_data_out(results)
 print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete parallel computation.")
 
