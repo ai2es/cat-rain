@@ -4,23 +4,8 @@ from multiprocessing import Pool
 import time
 import argparse
 import yaml
-from src.data import data_class, get_home_location, get_jump_lengths, get_max_distance_from_home
-from src.data import func_w_kwargs, filter_tdf, compress_tdf, get_collective_random_entropy, get_radius_of_gyration
-from src.data import get_real_entropy, get_uncorrelated_entropy, get_collective_uncorrelated_entropy
-from src.data import get_mean_square_displacement
+from src.data import data_class, run_parallel, function_pipe, func_w_kwargs
 
-results = []
-available_funcs = {"filter": filter_tdf,
-                   "compress": compress_tdf,
-                   "radius_of_gyration": get_radius_of_gyration,
-                   "home_location": get_home_location,
-                   "jump_lengths": get_jump_lengths,
-                   "max_distance_from_home": get_max_distance_from_home,
-                   "real_entropy": get_real_entropy,
-                   "uncorrelated_entropy": get_uncorrelated_entropy,
-                   "mean_square_displacement": get_mean_square_displacement,
-                   "random_location_entropy": get_collective_random_entropy,
-                   "uncorrelated_location_entropy": get_collective_uncorrelated_entropy}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--config", help="Path to config file")
@@ -29,18 +14,19 @@ with open(args.config) as config_file:
     config = yaml.safe_load(config_file)
 
 data_class.set_attrs(config) # set class attributes for file list, key_file, and metadata
-func = available_funcs[config["function"]]
-kwargs = config["kwargs"][config["function"]]
 n_processors =  config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count()
-row_groups =data_class.row_groups
-f = func_w_kwargs(func, kwargs)
-
+row_groups = data_class.row_groups
+f_kwargs = function_pipe(config)
+f = func_w_kwargs(run_parallel, f_kwargs)
 s = time.time()
+results = []
 with Pool(processes=n_processors) as pool:
     result = pool.map_async(f, row_groups)
-    results.append(result.get())
-
-data_class.save_data_out(results)
-
+    results = result.get()
+# data_class.save_data_out(results)
+print(results[0])
+print(len(results))
+print(data_class.save_out_files)
+# print("LENGTH RESULTS", len(results))
 print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete parallel computation.")
 
