@@ -138,7 +138,7 @@ class DataProcessor(object):
     def save_data_out(self, processed_data):
 
         if self.aggregation_type == "full":
-            combined_data = pd.concat(processed_data[0])
+            combined_data = pd.concat([data[0] for data in processed_data])
             combined_data.to_parquet(self.save_out_files)
         elif self.aggregation_type == "daily":
             combined_data = [pd.concat(processed_data[:][f]) for f in range(len(self.data_files))]
