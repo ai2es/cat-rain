@@ -141,7 +141,7 @@ class DataProcessor(object):
             combined_data = pd.concat([data[0] for data in processed_data])
             combined_data.to_parquet(self.save_out_files)
         elif self.aggregation_type == "daily":
-            combined_data = [pd.concat(processed_data[:][f]) for f in range(len(self.data_files))]
+            combined_data = [pd.concat(item[f] for item in processed_data) for f in range(len(self.data_files))]
             for data, file_name in zip(combined_data, self.save_out_files):
                 data.to_parquet(file_name)
 
