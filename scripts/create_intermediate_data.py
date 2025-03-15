@@ -8,10 +8,12 @@ import time
 from src.preprocess import load_data
 
 
-base_path = "<base path to veresat data>"
-out_path = "<output path to intermediate data>"
-start = "2024-03-15"
-end = "2024-04-30"
+# base_path = "<base path to veraset data>"
+# out_path = "<output path to intermediate data>"
+base_path = "/glade/campaign/cisl/aiml/movement_premium/"
+out_path = "/glade/derecho/scratch/cbecker/CAT_daily/"
+start = "2024-03-31"
+end = "2024-04-02"
 dates = pd.date_range(start, end, freq='1d')
 date_str = dates.strftime("%Y/%m/%d/")
 
@@ -21,7 +23,7 @@ for i, date in enumerate(date_str):
     file_out_path = join(out_path, f"veraset_{dates[i].strftime('%Y-%m-%d')}_PST.parquet")
     current_files = sorted(glob(base_path + date + "*.parquet"))
 
-    with Pool(processes=multiprocessing.cpu_count() - 8) as pool:
+    with Pool(processes=multiprocessing.cpu_count()) as pool:
 
         current_df = pd.concat(pool.map(load_data, current_files), ignore_index=True)
 
