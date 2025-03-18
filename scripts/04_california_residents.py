@@ -45,7 +45,7 @@ args = [(rg,) for rg in row_groups]
 
 # Parallel Processing
 if __name__ == "__main__":
-    with Pool(processes=multiprocessing.cpu_count()) as pool:
+    with Pool(processes=multiprocessing.cpu_count())/2 as pool:
         results = pool.starmap(count_user_days, args)
 
     # Combine results across row groups
