@@ -2,12 +2,7 @@
 #data_prefix: ""
 #key_file: ""
 #save_out_path: ""
-base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
-data_prefix: "veraset"
-key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
-home_loc_file: '/glade/derecho/scratch/cbecker/CAT/home_locations/home_loc_by_row_group.parquet'
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/derecho/scratch/cbecker/CAT_analysis_data/"
 start_date: "2024-03-15"
 end_date: "2024-04-30"
 days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" amd "all"
@@ -83,11 +78,3 @@ collective_measures:
   uncorrelated_location_entropy:
     normalize: False
     show_progress: False
-
-
-
-
-
-
-
-
