@@ -25,7 +25,7 @@ if __name__ == "__main__":
     f_kwargs = function_pipe(config)
     f = func_w_kwargs(run_parallel, f_kwargs)
     s = time.time()
-    print('testing...')
+    print('Meta Data Loaded...')
     with Pool(processes=n_processors) as pool:
         result = pool.map_async(f, row_groups)
         results = result.get()

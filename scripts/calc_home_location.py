@@ -6,6 +6,7 @@ import argparse
 import yaml
 from src.data import data_class,func_w_kwargs, write_home_loc_by_row_group, calc_home_location
 import pandas as pd
+import os
 
 if __name__ == "__main__":
 
@@ -14,6 +15,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     with open(args.config) as config_file:
         config = yaml.safe_load(config_file)
+    os.makedirs(config["save_out_path"], exist_ok=True)
     data_class.set_attrs(config, load_key=True)  # set class attributes for file list, key_file, and metadata
     n_processors = config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count()
     row_groups = data_class.row_groups
