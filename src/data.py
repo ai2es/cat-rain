@@ -75,7 +75,8 @@ def run_parallel(row_group, filters, individual_measures, home_location):
             tdf = filter(tdf)
 
         measure_dfs = [measure(tdf) for measure in individual_measures]
-        tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), measure_dfs)
+        if len(measure_dfs) > 0:
+            tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), measure_dfs)
         if data_class.aggregation_type == "full":
             date_str = data_class.dates[0].strftime("%Y-%m-%d_") + data_class.dates[-1].strftime("%Y-%m-%d")
             tdf = add_date(tdf, date_str)
@@ -370,6 +371,12 @@ def calc_metrics(tdf_group, stats, metric_cols, group_cols):
 
     return stat_data
 
+def custom_filter(tdf, horizontal_acc, id_type):
+
+    tdf = tdf[tdf['horizontal_accuracy'] <= horizontal_acc]
+    tdf = tdf[tdf['id_type'] == id_type]
+
+    return tdf
 
 def home_location_zao(tdf, **kwargs):
 
@@ -415,7 +422,8 @@ available_funcs = {"mobility_filter": filtering.filter,
                    "mean_square_displacement": collective.mean_square_displacement,
                    "random_location_entropy": collective.random_location_entropy,
                    "uncorrelated_location_entropy": collective.uncorrelated_location_entropy,
-                   "add_zipcode": add_zipcode}
+                   "add_zipcode": add_zipcode,
+                   "custom_filter": custom_filter}
 
 grouped_stats = {"mean": "mean",
                  "median": "median",
