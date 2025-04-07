@@ -1,0 +1,76 @@
+base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
+data_prefix: "veraset"
+key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
+geo_file: "/glade/work/cbecker/california_zip.geojson"
+save_out_path: "/glade/derecho/scratch/ggantos/CAT/home_locations_skm/"
+start_date: "2024-03-15"
+end_date: "2024-04-30"
+days_of_week: "all"
+row_group_start_end: [] # empty [] will use all row groups [start, end]
+aggregation_type: "full"
+n_workers: -1 # -1 to use all available CPU workers
+
+pipeline: ["pings_per_date_range_filter", "horizontal_accuracy_and_speed_filter", "mobility_filter", "mobility_filter_copy1", "mobility_filter_copy2", "home_location_skm"]
+
+
+########### FILTERING ##########
+filters:
+  pings_per_date_range_filter:
+    start_date: "2024-03-28"
+    end_date: "2024-03-30"
+    min_pings: 1
+    
+  horizontal_accuracy_and_speed_filter:
+    max_horizontal_accuracy: 800
+    max_speed_kmh: 128.7
+    
+  mobility_filter:
+    max_speed_kmh: 10000.0
+
+  mobility_filter_copy1:
+    max_speed_kmh: 10000.0
+    include_loops: True
+    speed_kmh: 5.0
+    max_loop: 6
+    ratio_max: 0.25
+
+  mobility_filter_copy2:
+    max_speed_kmh: 1000.0
+
+
+########### HOME LOCATION ##########
+home_location_skm:
+  start_night: '22:00'
+  end_night: '07:00'
+  show_progress: False
+
+home_location_zao:
+  stop_radius_factor: 0.5
+  minutes_for_a_stop: 10.0
+  spatial_radius_km: 0.2
+  leaving_time: True
+  no_data_for_minutes: 1000000000000.0
+  min_speed_kmh: None
+  cluster_radius_km: 0.1
+  min_samples: 1
+
+
+########### INDIVIDUAL MEASURES ##########
+individual_measures:
+  radius_of_gyration:
+    show_progress: False
+
+  jump_lengths:
+    show_progress: False
+    merge: False
+
+  real_entropy:
+    show_progress: False
+
+  uncorrelated_entropy:
+    normalize: False
+    show_progress: False
+
+  distance_straight_line:
+    show_progress: False
+

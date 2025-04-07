@@ -2,11 +2,16 @@
 #data_prefix: ""
 #key_file: ""
 #save_out_path: ""
+base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
+data_prefix: "veraset"
+key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
+home_loc_file: '/glade/derecho/scratch/cbecker/CAT/home_locations/home_loc_by_row_group.parquet'
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-start_date: "2024-03-15"
-end_date: "2024-04-30"
+save_out_path: "/glade/derecho/scratch/ggantos/cat-rain-output/daily_sample/"
+start_date: "2024-03-19"
+end_date: "2024-04-02"
 days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" amd "all"
-row_group_start_end: [] # empty [] will use all row groups [start, end]
+row_group_start_end: [0, 4] # empty [] will use all row groups [start, end]
 aggregation_type: "daily" # Supports "full" or "daily"; only applies to non_grouped_calcs
 n_workers: -1 # -1 to use all available CPU workers
 
@@ -16,7 +21,7 @@ n_workers: -1 # -1 to use all available CPU workers
 # Would result in compressing all the data with given args, then calculating the entropy and ROG
 # and merging the results. Filters apply one after another on the output of the previous filter result
 # Measures are calculated independently on the filter results (if any) and then merged together
-pipeline: ["uncorrelated_entropy", "radius_of_gyration", "distance_straight_line"]
+pipeline: ["pings_per_date_range_filter", "horizontal_accuracy_and_speed_filter", "uncorrelated_entropy", "radius_of_gyration", "distance_straight_line"]
 
 # The previous pipeline results in a metrics for each individual and includes their home location
 # Below in "grouped_analysis", if use==True, it will perform spatial and temporal aggregation and apply list stats
@@ -28,6 +33,15 @@ grouped_analysis:
 
 ########### FILTERING ##########
 filters:
+  pings_per_date_range_filter:
+    start_date: "2024-03-28"
+    end_date: "2024-03-30"
+    min_pings: 1
+    
+  horizontal_accuracy_and_speed_filter:
+    max_horizontal_accuracy: 800
+    max_speed_kmh: 128.7
+
   mobility_filter:
     max_speed_kmh: 500.0
     include_loops: False
@@ -37,12 +51,6 @@ filters:
 
   compress:
     spatial_radius_km: 0.2
-
-  custom_filter:
-    min_time: None
-    max_time: None
-    max_horizontal_acc: None
-    cell_type: None
 
 ########### INDIVIDUAL MEASURES ##########
 individual_measures:

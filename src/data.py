@@ -3,9 +3,11 @@ import numpy as np
 import pyarrow.parquet as pq
 import pyarrow as pa
 import os
+import geopy.distance
+from skmob.utils import utils, constants
 from skmob.core.trajectorydataframe import TrajDataFrame
 from skmob.measures import individual, collective
-from skmob.preprocessing import filtering, compression
+from skmob.preprocessing import filtering, compression, detection, clustering
 from functools import partial, reduce
 import geopandas as gpd
 from shapely import STRtree, Point
@@ -14,20 +16,32 @@ from os.path import join
 # import pygeos
 
 
-def calc_home_location(row_group, **kwargs):
-
+def calc_home_location(row_group, filters, individual_measures, home_location):
+    
     tdfs = get_row_group_trajectories(row_group)
-    f = available_funcs['home_location']
-    home_locations = [f(tdf, **kwargs) for tdf in tdfs]
+    
+    home_locations = []
+    for i, tdf in enumerate(tdfs):
+        for filter in filters:
+            tdf = filter(tdf)
+        home_locations.append(home_location[0](tdf))
+
     tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), home_locations)
     tdf_w_geo = add_zipcode(tdf, all_matches=False)
 
     return tdf_w_geo
 
+
 def write_home_loc_by_row_group(data, out_path):
 
     out_file = join(out_path, 'home_loc_by_row_group.parquet')
-    data = data.set_index('uid').merge(data_class.key, left_index=True, right_index=True, how="left")
+    if "uid" in data.index.names:
+        data = data.merge(data_class.key, left_index=True, right_index=True, how="left")
+    elif "uid" in data.columns:
+        data = data.set_index('uid').merge(data_class.key, left_index=True, right_index=True, how="left")
+    else:
+        raise KeyError("UID not in index or columns.")
+
     schema = pa.Table.from_pandas(data).schema
     writer = pq.ParquetWriter(out_file, schema)
     for row_group in data_class.row_groups:
@@ -43,7 +57,7 @@ def add_date(tdf, date):
     return tdf
 
 
-def run_parallel(row_group, filters, individual_measures):
+def run_parallel(row_group, filters, individual_measures, home_location):
     """ Run filtering and measure calculations for a specific row group on a specific CPU worker.
     Args:
         row_group (int): The row group to run calculations on.
@@ -77,7 +91,7 @@ def run_parallel(row_group, filters, individual_measures):
 def function_pipe(conf):
     """ Create partials (functions with predefined kwargs) for each filter and measurement. """
 
-    filter_funcs, ind_measure_funcs = [], []
+    filter_funcs, ind_measure_funcs, home_location_func = [], [], []
     for f in conf['pipeline']:
         if f in conf["filters"]:
             kwargs = conf["filters"][f]
@@ -85,10 +99,13 @@ def function_pipe(conf):
         elif f in conf["individual_measures"]:
             kwargs = conf["individual_measures"][f]
             ind_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
+        elif "home_location" in f:
+            kwargs = conf[f]
+            home_location_func.append(func_w_kwargs(available_funcs[f], kwargs))
         else:
             raise NameError("Function not found.")
 
-    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs}
+    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "home_location": home_location_func}
 
 
 def ensure_list(obj):
@@ -266,6 +283,80 @@ def add_zipcode(tdf, **kwargs):
     return tdf
 
 
+def filter_by_min_pings_per_daterange(tdf, start_date='2024-03-14', end_date='2024-04-30', min_pings=1):
+
+    # filter by date range, inclusive    
+    _tdf = tdf.copy(deep=True)
+    _tdf.loc[:, constants.DATETIME] = _tdf[constants.DATETIME].dt.normalize()
+    _tdf = _tdf[(_tdf[constants.DATETIME] >= start_date) & (_tdf[constants.DATETIME] <= end_date)]
+    threshold = (len(_tdf[constants.DATETIME].unique()) - 1) * min_pings
+    
+    # if 'uid' column in not present in the TrajDataFrame
+    if constants.UID not in _tdf.columns:
+        _tdf = _tdf.set_index(constants.DATETIME, drop=True)
+        _tdf = _tdf.loc[:, constants.LATITUDE].groupby(level=0).count()
+        if len(_tdf[_tdf > 1]) > threshold:
+            return tdf
+    else:
+        _tdf = _tdf.set_index([constants.UID, constants.DATETIME], drop=True)
+        _tdf = _tdf.loc[:, constants.LATITUDE].groupby(level=[0,1]).count()
+        _tdf[_tdf > 1] = 1
+        _tdf = _tdf.groupby(level=0).count()
+        uids = _tdf[_tdf > threshold].index
+        
+        return tdf[tdf[constants.UID].isin(uids)]
+
+
+def filter_by_horizontal_accuracy_and_speed(tdf, max_horizontal_accuracy=800, max_speed_kmh=128.7):
+
+    columns = [constants.LATITUDE, constants.LONGITUDE]
+    distfunc = geopy.distance.distance
+    
+    tdf.reset_index(inplace=True)
+    for i in tdf[tdf.horizontal_accuracy >= max_horizontal_accuracy].index:
+        if i-1 in tdf.index and tdf.loc[i-1, "uid"] == tdf.loc[i, "uid"]:
+            start = i - 1
+            end = i
+        elif i+1 in tdf.index and tdf.loc[i+1, "uid"] == tdf.loc[i, "uid"]:
+            start = i
+            end = i + 1
+        else:
+            continue
+        
+        dt = utils.diff_seconds(tdf.loc[start, constants.DATETIME], tdf.loc[end, constants.DATETIME])
+        distance = distfunc(tdf.loc[start, columns].tolist(), tdf.loc[end, columns].tolist()).km
+        
+        if distance / dt * 3600. > max_speed_kmh:
+            tdf.drop(i, inplace=True)
+            
+    return tdf.set_index("index", drop=True)
+
+
+def filter_by_horizontal_accuracy_and_speed(tdf, max_horizontal_accuracy=800, max_speed_kmh=128.7):
+
+    columns = [constants.LATITUDE, constants.LONGITUDE]
+    distfunc = geopy.distance.distance
+    
+    tdf.reset_index(inplace=True)
+    for i in tdf[tdf.horizontal_accuracy >= max_horizontal_accuracy].index:
+        if i-1 in tdf.index and tdf.loc[i-1, "uid"] == tdf.loc[i, "uid"]:
+            start = i - 1
+            end = i
+        elif i+1 in tdf.index and tdf.loc[i+1, "uid"] == tdf.loc[i, "uid"]:
+            start = i
+            end = i + 1
+        else:
+            continue
+        
+        dt = utils.diff_seconds(tdf.loc[start, constants.DATETIME], tdf.loc[end, constants.DATETIME])
+        distance = distfunc(tdf.loc[start, columns].tolist(), tdf.loc[end, columns].tolist()).km
+        
+        if distance / dt * 3600. > max_speed_kmh:
+            tdf = tdf.drop(i)
+    
+    return tdf.set_index("index", drop=True)
+
+
 def calc_metrics(tdf_group, stats, metric_cols, group_cols):
 
     group, data = tdf_group
@@ -280,10 +371,43 @@ def calc_metrics(tdf_group, stats, metric_cols, group_cols):
     return stat_data
 
 
+def home_location_zao(tdf, **kwargs):
+
+    stops = detection.stay_locations(tdf,
+                                     stop_radius_factor=0.5,
+                                     minutes_for_a_stop=10.0,
+                                     spatial_radius_km=0.2,
+                                     leaving_time=True,
+                                     no_data_for_minutes=1000000000000.0,
+                                     min_speed_kmh=None)
+    if stops.shape[0] == 0:
+        pass
+    clusters = clustering.cluster(stops, cluster_radius_km=0.1, min_samples=1)
+    clusters["duration"] = clusters["leaving_datetime"] - clusters["datetime"]
+    
+    _tdf1 = clusters.groupby(["uid", "cluster"])["duration"].sum()
+    _tdf2 = clusters.groupby(["uid", "cluster"])[["lat", "lng"]].mean()
+    _tdfhw = pd.concat((_tdf1.to_frame(), _tdf2), axis=1, join="inner")
+    _tdfhw = _tdfhw.sort_values(by = ['uid', 'duration'], ascending = [False, False])
+    _tdfhw = _tdfhw.groupby("uid").head(2)
+
+    home = _tdfhw.groupby("uid").head(1).droplevel(1)
+    home = home.rename(columns={"duration": "duration_home"})
+    work = _tdfhw.groupby("uid").tail(1).droplevel(1)
+    work = work.rename(columns={"lat": "lat_work", "lng": "lng_work", "duration": "duration_work"})
+    
+    return home.merge(work, left_index=True, right_index=True)
+
+
 available_funcs = {"mobility_filter": filtering.filter,
+                   "mobility_filter_copy1": filtering.filter,
+                   "mobility_filter_copy2": filtering.filter,
+                   "pings_per_date_range_filter": filter_by_min_pings_per_daterange,
+                   "horizontal_accuracy_and_speed_filter": filter_by_horizontal_accuracy_and_speed,
                    "compress": compression.compress,
                    "radius_of_gyration": individual.radius_of_gyration,
-                   "home_location": individual.home_location,
+                   "home_location_skm": individual.home_location,
+                   "home_location_zao": home_location_zao,
                    "jump_lengths": individual.jump_lengths,
                    "real_entropy": individual.real_entropy,
                    "uncorrelated_entropy": individual.uncorrelated_entropy,
