@@ -92,7 +92,7 @@ def run_parallel(row_group, filters, individual_measures, home_location):
 def function_pipe(conf):
     """ Create partials (functions with predefined kwargs) for each filter and measurement. """
 
-    filter_funcs, ind_measure_funcs, home_location_func = [], [], []
+    filter_funcs, ind_measure_funcs, home_location_funcs = [], [], []
     for f in conf['pipeline']:
         if f in conf["filters"]:
             kwargs = conf["filters"][f]
@@ -100,13 +100,13 @@ def function_pipe(conf):
         elif f in conf["individual_measures"]:
             kwargs = conf["individual_measures"][f]
             ind_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
-        elif "home_location" in f:
-            kwargs = conf[f]
-            home_location_func.append(func_w_kwargs(available_funcs[f], kwargs))
+        elif f in conf["home_locations"]:
+            kwargs = conf["home_locations"][f]
+            home_location_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
         else:
             raise NameError("Function not found.")
 
-    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "home_location": home_location_func}
+    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "home_location": home_location_funcs}
 
 
 def ensure_list(obj):
@@ -378,20 +378,25 @@ def custom_filter(tdf, horizontal_acc, id_type):
 
     return tdf
 
-def home_location_zao(tdf, **kwargs):
+def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radius_km,
+                     leaving_time, no_data_for_minutes, min_speed_kmh, cluster_radius_km,
+                     min_samples):
 
+    print("Users before home location calculation", tdf.uid.unique().shape)
     stops = detection.stay_locations(tdf,
-                                     stop_radius_factor=0.5,
-                                     minutes_for_a_stop=10.0,
-                                     spatial_radius_km=0.2,
-                                     leaving_time=True,
-                                     no_data_for_minutes=1000000000000.0,
-                                     min_speed_kmh=None)
+                                     stop_radius_factor=stop_radius_factor,
+                                     minutes_for_a_stop=minutes_for_a_stop,
+                                     spatial_radius_km=spatial_radius_km,
+                                     leaving_time=leaving_time,
+                                     no_data_for_minutes=no_data_for_minutes,
+                                     min_speed_kmh=min_speed_kmh)
+    print("Users after stay_locations", stops.uid.unique().shape)
     if stops.shape[0] == 0:
         pass
-    clusters = clustering.cluster(stops, cluster_radius_km=0.1, min_samples=1)
+    clusters = clustering.cluster(stops, cluster_radius_km=cluster_radius_km, min_samples=min_samples)
     clusters["duration"] = clusters["leaving_datetime"] - clusters["datetime"]
-    
+    print("Users after clustering", clusters.uid.unique().shape)
+
     _tdf1 = clusters.groupby(["uid", "cluster"])["duration"].sum()
     _tdf2 = clusters.groupby(["uid", "cluster"])[["lat", "lng"]].mean()
     _tdfhw = pd.concat((_tdf1.to_frame(), _tdf2), axis=1, join="inner")
@@ -402,6 +407,7 @@ def home_location_zao(tdf, **kwargs):
     home = home.rename(columns={"duration": "duration_home"})
     work = _tdfhw.groupby("uid").tail(1).droplevel(1)
     work = work.rename(columns={"lat": "lat_work", "lng": "lng_work", "duration": "duration_work"})
+    print("Users before return", home.index.unique().shape)
     
     return home.merge(work, left_index=True, right_index=True)
 
@@ -414,7 +420,7 @@ available_funcs = {"mobility_filter": filtering.filter,
                    "compress": compression.compress,
                    "radius_of_gyration": individual.radius_of_gyration,
                    "home_location_skm": individual.home_location,
-                   "home_location_zao": home_location_zao,
+                   "home_location_tao": home_location_tao,
                    "jump_lengths": individual.jump_lengths,
                    "real_entropy": individual.real_entropy,
                    "uncorrelated_entropy": individual.uncorrelated_entropy,
