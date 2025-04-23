@@ -11,6 +11,7 @@ import geopandas as gpd
 from shapely import STRtree, Point
 from copy import copy
 from os.path import join
+from geopy.distance import distance
 # import pygeos
 
 
@@ -57,11 +58,11 @@ def run_parallel(row_group, filters, individual_measures):
     home = get_row_group_home(row_group)
     processed_tdfs = []
     for i, tdf in enumerate(tdfs):
-        for filter in filters:
-            tdf = filter(tdf)
-
-        measure_dfs = [measure(tdf) for measure in individual_measures]
-        if len(measure_dfs) > 0:
+        if len(filters) > 0:
+            for filter in filters:
+                tdf = filter(tdf)
+        if len(individual_measures) > 0:
+            measure_dfs = [measure(tdf) for measure in individual_measures]
             tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), measure_dfs)
         if data_class.aggregation_type == "full":
             date_str = data_class.dates[0].strftime("%Y-%m-%d_") + data_class.dates[-1].strftime("%Y-%m-%d")
@@ -69,7 +70,7 @@ def run_parallel(row_group, filters, individual_measures):
         else:
             tdf = add_date(tdf, data_class.dates[i])
         processed_tdfs.append(tdf)
-
+    return pd.concat(processed_tdfs)
     merged_data = pd.merge(home, pd.concat(processed_tdfs), on='uid')
 
     return merged_data
@@ -216,12 +217,12 @@ class DataProcessor(object):
             combined_data = pd.concat([data for data in processed_data])
             combined_data.to_parquet(self.save_out_files)
         elif self.aggregation_type == "daily":
-            combined_data = [pd.concat(processed_data[f]) for f in range(len(self.data_files))]
-            for data, file_name in zip(combined_data, self.save_out_files):
-                data.to_parquet(file_name)
+            for date, file in zip(self.dates, self.save_out_files):
+                daily_data = processed_data[processed_data['date'] == date]
+                daily_data.to_parquet(file)
         else:
             raise ValueError("Unsupported aggregation type")
-        return combined_data
+        return
 
 ###################### FILTERING ###########################
 def get_row_group_home(row_group):
@@ -287,6 +288,21 @@ def custom_filter(tdf, horizontal_acc, id_type):
 
     return tdf
 
+
+def get_max_dist(df):
+    df_samp = df.iloc[0:1]
+    df_samp['max_distance_from_home'] = 0
+    reference = (df_samp['home_lat'].values[0], df_samp['home_lon'].values[0])
+    points = list(zip(df['lat'].values, df['lng'].values))
+    max_dist = 0
+    for point in points:
+        dist = distance(reference, point)
+        if dist > max_dist:
+            max_dist = dist
+        df_samp['max_distance_from_home'] = max_dist
+    return df_samp
+
+
 available_funcs = {"mobility_filter": filtering.filter,
                    "compress": compression.compress,
                    "radius_of_gyration": individual.radius_of_gyration,
@@ -295,6 +311,9 @@ available_funcs = {"mobility_filter": filtering.filter,
                    "real_entropy": individual.real_entropy,
                    "uncorrelated_entropy": individual.uncorrelated_entropy,
                    "distance_straight_line": individual.distance_straight_line,
+                   "number_of_visits": individual.number_of_visits,
+                   "waiting_times": individual.waiting_times,
+                   "get_max_distance": get_max_dist,
                    "mean_square_displacement": collective.mean_square_displacement,
                    "random_location_entropy": collective.random_location_entropy,
                    "uncorrelated_location_entropy": collective.uncorrelated_location_entropy,
