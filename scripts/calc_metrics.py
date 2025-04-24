@@ -31,12 +31,10 @@ if __name__ == "__main__":
         results = result.get()
     print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete parallel computation.")
     s = time.time()
-
+    combined_data = pd.concat(results)
     if not config['grouped_analysis']["use"]:
-        results = data_class.save_data_out(results)
+        data_class.save_data_out(combined_data)
     else:
-        combined_data = pd.concat(results)
-
         group_cols = config["grouped_analysis"]["temporal_agg"] + config["grouped_analysis"]["spatial_agg"]
         grouped = combined_data.groupby(group_cols)
         groups = [g for g in grouped]
