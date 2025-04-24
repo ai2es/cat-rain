@@ -1,0 +1,19 @@
+#!/bin/bash -l
+#PBS -N cal_res
+#PBS -A NAML0001
+#PBS -l walltime=10:00:00
+#PBS -j oe
+#PBS -q main
+#PBS -l select=1:ncpus=128
+#PBS -m a
+#PBS -M your@email
+
+### Set temp to scratch
+export TMPDIR=${SCRATCH}/${jcelis}/temp && mkdir -p $TMPDIR
+
+### specify desired module environment
+module load conda
+conda activate pycat
+
+### Run analysis script
+python 04_california_residents.py

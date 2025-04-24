@@ -1,0 +1,20 @@
+#!/bin/bash -l
+#PBS -N distances_and_Stops
+#PBS -A NAML0001
+#PBS -l walltime=10:00:00
+#PBS -j oe
+#PBS -q main
+#PBS -l select=1:ncpus=128
+#PBS -m a
+#PBS -M jcelis@ou.edu
+
+### Set temp to scratch
+export TMPDIR=${SCRATCH}/${jcelis}/temp && mkdir -p $TMPDIR
+
+### specify desired module environment
+module load conda
+conda activate pycat
+cd /glade/work/jcelis/code/jcelis/2.mobility_code/Modular_approach/cat-rain-cbecker/scripts
+
+### Run analysis script
+python Distance_Stops.py

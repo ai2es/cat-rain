@@ -217,6 +217,7 @@ class DataProcessor(object):
             combined_data = pd.concat([data for data in processed_data])
             combined_data.to_parquet(self.save_out_files)
         elif self.aggregation_type == "daily":
+          
             for date, file in zip(self.dates, self.save_out_files):
                 daily_data = processed_data[processed_data['date'] == date]
                 daily_data.to_parquet(file)
