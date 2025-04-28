@@ -55,24 +55,28 @@ def run_parallel(row_group, filters, individual_measures):
         List of pandas DataFrames with merged metrics on filtered data.
     """
     tdfs = get_row_group_trajectories(row_group) ## add home data
-    home = get_row_group_home(row_group)
+    home = get_row_group_home(row_group).rename(columns={'lng': 'home_lon', 'lat': 'home_lat'})
     processed_tdfs = []
     for i, tdf in enumerate(tdfs):
         if len(filters) > 0:
             for filter in filters:
                 tdf = filter(tdf)
+        if get_max_dist in [x.func for x in individual_measures]: ### Custom logic for function that requires home loc
+            individual_measures = [x for x in individual_measures if x.func != get_max_dist]
+            individual_measures.append(partial(get_max_dist, home_tdf=home))
+
         if len(individual_measures) > 0:
             measure_dfs = [measure(tdf) for measure in individual_measures]
             tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), measure_dfs)
+
         if data_class.aggregation_type == "full":
             date_str = data_class.dates[0].strftime("%Y-%m-%d_") + data_class.dates[-1].strftime("%Y-%m-%d")
             tdf = add_date(tdf, date_str)
         else:
             tdf = add_date(tdf, data_class.dates[i])
-        processed_tdfs.append(tdf)
-    return pd.concat(processed_tdfs)
-    merged_data = pd.merge(home, pd.concat(processed_tdfs), on='uid')
 
+        processed_tdfs.append(tdf)
+    merged_data = pd.merge(home, pd.concat(processed_tdfs), on='uid')
     return merged_data
 
 
@@ -214,8 +218,7 @@ class DataProcessor(object):
     def save_data_out(self, processed_data):
 
         if self.aggregation_type == "full":
-            combined_data = pd.concat([data for data in processed_data])
-            combined_data.to_parquet(self.save_out_files)
+            processed_data.to_parquet(self.save_out_files)
         elif self.aggregation_type == "daily":
           
             for date, file in zip(self.dates, self.save_out_files):
@@ -289,19 +292,27 @@ def custom_filter(tdf, horizontal_acc, id_type):
 
     return tdf
 
+def calc_distance(df):
 
-def get_max_dist(df):
     df_samp = df.iloc[0:1]
     df_samp['max_distance_from_home'] = 0
     reference = (df_samp['home_lat'].values[0], df_samp['home_lon'].values[0])
     points = list(zip(df['lat'].values, df['lng'].values))
     max_dist = 0
     for point in points:
-        dist = distance(reference, point)
+        dist = distance(reference, point).km
         if dist > max_dist:
             max_dist = dist
         df_samp['max_distance_from_home'] = max_dist
-    return df_samp
+    return df_samp[['max_distance_from_home']]
+
+
+def get_max_dist(tdf, home_tdf, **kwargs):
+
+    df_combined = pd.merge(tdf, home_tdf, on='uid', how='left')
+    return df_combined.groupby('uid').apply(calc_distance)
+
+
 
 
 available_funcs = {"mobility_filter": filtering.filter,
@@ -314,7 +325,7 @@ available_funcs = {"mobility_filter": filtering.filter,
                    "distance_straight_line": individual.distance_straight_line,
                    "number_of_visits": individual.number_of_visits,
                    "waiting_times": individual.waiting_times,
-                   "get_max_distance": get_max_dist,
+                   "get_max_distance_from_home": get_max_dist,
                    "mean_square_displacement": collective.mean_square_displacement,
                    "random_location_entropy": collective.random_location_entropy,
                    "uncorrelated_location_entropy": collective.uncorrelated_location_entropy,
