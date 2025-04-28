@@ -58,7 +58,7 @@ def add_date(tdf, date):
     return tdf
 
 
-def run_parallel(row_group, filters, individual_measures, home_location):
+def run_parallel(row_group, filters, individual_measures):
     """ Run filtering and measure calculations for a specific row group on a specific CPU worker.
     Args:
         row_group (int): The row group to run calculations on.
@@ -97,7 +97,7 @@ def run_parallel(row_group, filters, individual_measures, home_location):
 def function_pipe(conf):
     """ Create partials (functions with predefined kwargs) for each filter and measurement. """
 
-    filter_funcs, ind_measure_funcs, home_location_funcs = [], [], []
+    filter_funcs, ind_measure_funcs, home_location_funcs, col_measure_funcs = [], [], [], []
     for f in conf['pipeline']:
         if f in conf["filters"]:
             kwargs = conf["filters"][f]
@@ -108,10 +108,13 @@ def function_pipe(conf):
         elif f in conf["home_locations"]:
             kwargs = conf["home_locations"][f]
             home_location_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
+        elif f in conf["collective_measures"]:
+            kwargs = conf["collective_measures"][f]
+            col_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
         else:
             raise NameError("Function not found.")
 
-    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "home_location": home_location_funcs}
+    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "collective_measures": col_measure_funcs, "home_location": home_location_funcs}
 
 
 def ensure_list(obj):

@@ -1,12 +1,17 @@
-base_data_path: ""
-data_prefix: ""
-key_file: ""
+#base_data_path: ""
+#data_prefix: ""
+#key_file: ""
+#save_out_path: ""
+base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
+data_prefix: "veraset"
+key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
+home_loc_file: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao_nofilters/home_loc_by_row_group.parquet"
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/derecho/scratch/ggantos/cat-rain-output/daily_sample/"
-start_date: "2024-03-19"
-end_date: "2024-04-02"
-days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" amd "all"
-row_group_start_end: [0, 4] # empty [] will use all row groups [start, end]
+save_out_path: "/glade/derecho/scratch/ggantos/cat-rain-output/individual_metrics_daily/"
+start_date: "2024-03-14"
+end_date: "2024-04-30"
+days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" and "all"
+row_group_start_end: [] # empty [] will use all row groups [start, end]
 aggregation_type: "daily" # Supports "full" or "daily"; only applies to non_grouped_calcs
 n_workers: -1 # -1 to use all available CPU workers
 
@@ -25,6 +30,18 @@ grouped_analysis:
   temporal_agg: ["date"] # Currently only supports "date"
   stats: ["mean", "median", "sum"]
 
+########### HOME LOCATIONS ##########
+home_locations:
+  home_location_tao:
+      stop_radius_factor: 0.5
+      minutes_for_a_stop: 10.0
+      spatial_radius_km: 0.2
+      leaving_time: True
+      no_data_for_minutes: 1000000000000.0
+      min_speed_kmh: null
+      cluster_radius_km: 0.1
+      min_samples: 1
+      
 ########### FILTERING ##########
 filters:
   pings_per_date_range_filter:
@@ -79,7 +96,6 @@ individual_measures:
     kwargs: None
 
 ##################### COLLECTIVE METRICS ###############
-
 collective_measures:
   mean_square_displacement:
     days: 0
