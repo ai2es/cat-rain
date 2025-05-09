@@ -17,7 +17,7 @@ from geopy.distance import distance
 # import pygeos
 
 
-def calc_home_location(row_group, filters, individual_measures, home_location):
+def calc_home_location(row_group, filters, individual_measures, home_location, collective_measures):
     
     tdfs = get_row_group_trajectories(row_group)
     
@@ -292,7 +292,7 @@ def add_zipcode(tdf, **kwargs):
     return tdf
 
 
-def filter_by_min_pings_per_daterange(tdf, start_date='2024-03-14', end_date='2024-04-30', min_pings=1):
+def filter_by_min_pings_per_date(tdf, start_date='2024-03-14', end_date='2024-04-30', min_pings=1):
 
     # filter by date range, inclusive    
     _tdf = tdf.copy(deep=True)
@@ -312,6 +312,29 @@ def filter_by_min_pings_per_daterange(tdf, start_date='2024-03-14', end_date='20
         _tdf[_tdf > 1] = 1
         _tdf = _tdf.groupby(level=0).count()
         uids = _tdf[_tdf > threshold].index
+        
+        return tdf[tdf[constants.UID].isin(uids)]
+
+
+def filter_by_min_pings_per_daterange(tdf, start_date=['2024-03-14'], end_date=['2024-04-30'], min_pings=1):
+
+    # filter by date range, inclusive
+    _tdf = tdf.copy(deep=True)
+    _tdf.loc[:, constants.DATETIME] = _tdf[constants.DATETIME].dt.normalize()
+
+    _tdf_range = []
+    for i, sd in enumerate(start_date):
+        _tdf_range.append(_tdf[(_tdf[constants.DATETIME] >= sd) & (_tdf[constants.DATETIME] <= end_date[i])])
+    _tdf_range = pd.concat(_tdf_range)
+    
+    # if 'uid' column in not present in the TrajDataFrame
+    if constants.UID not in _tdf_range.columns:
+        if len(_tdf_range) > min_pings:
+            return tdf
+    else:
+        _tdf_range = _tdf_range.set_index(constants.UID, drop=True)
+        _tdf_range = _tdf_range.loc[:, constants.LATITUDE].groupby(constants.UID).count()
+        uids = _tdf_range[_tdf_range > min_pings].index
         
         return tdf[tdf[constants.UID].isin(uids)]
 
@@ -390,7 +413,7 @@ def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radiu
                      leaving_time, no_data_for_minutes, min_speed_kmh, cluster_radius_km,
                      min_samples):
 
-    print("Users before home location calculation", tdf.uid.unique().shape)
+    # print("Users before home location calculation", tdf.uid.unique().shape)
     stops = detection.stay_locations(tdf,
                                      stop_radius_factor=stop_radius_factor,
                                      minutes_for_a_stop=minutes_for_a_stop,
@@ -398,12 +421,12 @@ def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radiu
                                      leaving_time=leaving_time,
                                      no_data_for_minutes=no_data_for_minutes,
                                      min_speed_kmh=min_speed_kmh)
-    print("Users after stay_locations", stops.uid.unique().shape)
+    # print("Users after stay_locations", stops.uid.unique().shape)
     if stops.shape[0] == 0:
         pass
     clusters = clustering.cluster(stops, cluster_radius_km=cluster_radius_km, min_samples=min_samples)
     clusters["duration"] = clusters["leaving_datetime"] - clusters["datetime"]
-    print("Users after clustering", clusters.uid.unique().shape)
+    # print("Users after clustering", clusters.uid.unique().shape)
 
     _tdf1 = clusters.groupby(["uid", "cluster"])["duration"].sum()
     _tdf2 = clusters.groupby(["uid", "cluster"])[["lat", "lng"]].mean()
@@ -415,7 +438,7 @@ def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radiu
     home = home.rename(columns={"duration": "duration_home"})
     work = _tdfhw.groupby("uid").tail(1).droplevel(1)
     work = work.rename(columns={"lat": "lat_work", "lng": "lng_work", "duration": "duration_work"})
-    print("Users before return", home.index.unique().shape)
+    # print("Users before return", home.index.unique().shape)
     
     return home.merge(work, left_index=True, right_index=True)
 
@@ -443,7 +466,7 @@ def get_max_dist(tdf, home_tdf, **kwargs):
 available_funcs = {"mobility_filter": filtering.filter,
                    "mobility_filter_copy1": filtering.filter,
                    "mobility_filter_copy2": filtering.filter,
-                   "pings_per_date_range_filter": filter_by_min_pings_per_daterange,
+                   "pings_per_date_filter": filter_by_min_pings_per_date,
                    "horizontal_accuracy_and_speed_filter": filter_by_horizontal_accuracy_and_speed,
                    "compress": compression.compress,
                    "radius_of_gyration": individual.radius_of_gyration,
