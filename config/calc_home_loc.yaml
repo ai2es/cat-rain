@@ -2,7 +2,7 @@ base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
 data_prefix: "veraset"
 key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/derecho/scratch/ggantos/CAT/home_locations_skm_nofilters_updated/"
+save_out_path: "/glade/derecho/scratch/ggantos/CAT/home_locations_skm_filtered/"
 start_date: "2024-03-15"
 end_date: "2024-04-30"
 days_of_week: "all"
@@ -10,7 +10,7 @@ row_group_start_end: [] # empty [] will use all row groups [start, end]
 aggregation_type: "full"
 n_workers: -1 # -1 to use all available CPU workers
 
-pipeline: ["home_location_skm"]
+pipeline: ["pings_per_daterange_filter", "pings_per_daterange_filter_copy1", "home_location_skm"]
 
 
 ########### FILTERING ##########
@@ -19,7 +19,17 @@ filters:
     start_date: "2024-03-28"
     end_date: "2024-03-30"
     min_pings: 1
-    
+
+  pings_per_daterange_filter:
+    start_date: ['2024-03-15', '2024-04-03']
+    end_date: ['2024-03-26', '2024-04-30']
+    min_pings: 1
+
+  pings_per_daterange_filter_copy1:
+    start_date: ['2024-03-27']
+    end_date: ['2024-04-02']
+    min_pings: 1
+
   horizontal_accuracy_and_speed_filter:
     max_horizontal_accuracy: 800
     max_speed_kmh: 128.7

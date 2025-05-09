@@ -48,6 +48,16 @@ filters:
     start_date: "2024-03-28"
     end_date: "2024-03-30"
     min_pings: 1
+
+  pings_per_daterange_filter:
+    start_date: ['2024-03-15', '2024-04-03']
+    end_date: ['2024-03-26', '2024-04-30']
+    min_pings: 1
+
+  pings_per_daterange_filter_copy1:
+    start_date: ['2024-03-27']
+    end_date: ['2024-04-02']
+    min_pings: 1
     
   horizontal_accuracy_and_speed_filter:
     max_horizontal_accuracy: 800
