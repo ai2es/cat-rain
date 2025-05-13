@@ -1,8 +1,6 @@
-import pandas as pd
-import numpy as np
 import glob
-import time
 from src.preprocess import create_chunk_key, write_daily_chunked_data
+from os.path import join
 
 base_path = "<path to daily veraset files>"
 key_out_path = "<out path for master key file>"
