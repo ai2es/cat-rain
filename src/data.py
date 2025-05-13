@@ -6,34 +6,14 @@ import os
 from skmob.core.trajectorydataframe import TrajDataFrame
 from skmob.measures import individual, collective
 from skmob.preprocessing import filtering, compression
+from skmob.preprocessing import detection
+from haversine import haversine, Unit
 from functools import partial, reduce
 import geopandas as gpd
 from shapely import STRtree, Point
 from copy import copy
 from os.path import join
 # import pygeos
-
-
-def calc_home_location(row_group, **kwargs):
-
-    tdfs = get_row_group_trajectories(row_group)
-    f = available_funcs['home_location']
-    home_locations = [f(tdf, **kwargs) for tdf in tdfs]
-    tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), home_locations)
-    tdf_w_geo = add_zipcode(tdf, all_matches=False)
-
-    return tdf_w_geo
-
-def write_home_loc_by_row_group(data, out_path):
-
-    out_file = join(out_path, 'home_loc_by_row_group.parquet')
-    data = data.set_index('uid').merge(data_class.key, left_index=True, right_index=True, how="left")
-    schema = pa.Table.from_pandas(data).schema
-    writer = pq.ParquetWriter(out_file, schema)
-    for row_group in data_class.row_groups:
-        row_group_data = pa.Table.from_pandas(data[data['row_group'] == row_group])
-        writer.write_table(row_group_data)
-    writer.close()
 
 
 def add_date(tdf, date):
@@ -256,8 +236,54 @@ def get_row_group_trajectories(row_group):
     # assert set(tdf[0]['uid'].values) == set(home['uid'].values)
     return tdf
 
+###################### Additional Metrics functions ###########################
 
-##############  MISCELLANEOUS  ################
+def calc_home_location(row_group, **kwargs):
+
+    tdfs = get_row_group_trajectories(row_group)
+    f = available_funcs['home_location']
+    home_locations = [f(tdf, **kwargs) for tdf in tdfs]
+    tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), home_locations)
+    tdf_w_geo = add_zipcode(tdf, all_matches=False)
+
+    return tdf_w_geo
+
+def write_home_loc_by_row_group(data, out_path):
+
+    out_file = join(out_path, 'home_loc_by_row_group.parquet')
+    data = data.set_index('uid').merge(data_class.key, left_index=True, right_index=True, how="left")
+    schema = pa.Table.from_pandas(data).schema
+    writer = pq.ParquetWriter(out_file, schema)
+    for row_group in data_class.row_groups:
+        row_group_data = pa.Table.from_pandas(data[data['row_group'] == row_group])
+        writer.write_table(row_group_data)
+    writer.close()
+
+
+def get_stop_counts(tdf, **kwargs):
+    stdf = detection.stay_locations(tdf, **kwargs)
+    return stdf.groupby("uid").size().reset_index(name="num_stops")
+
+
+def get_daily_distance(tdf, **kwargs):
+    df = tdf.copy().sort_values(by=["uid", "datetime"])
+    df["lat_prev"] = df.groupby("uid")["latitude"].shift()
+    df["lon_prev"] = df.groupby("uid")["longitude"].shift()
+    df = df.dropna(subset=["lat_prev", "lon_prev"])
+    df["distance"] = df.apply(lambda r: haversine(
+        (r["lat_prev"], r["lon_prev"]), (r["latitude"], r["longitude"]), unit=Unit.MILES), axis=1)
+    df["date"] = df["datetime"].dt.date
+    return df.groupby(["uid", "date"])["distance"].sum().reset_index(name="distance_miles")
+
+
+def get_daily_stops(tdf, **kwargs):
+    stdf = detection.stay_locations(tdf, **kwargs)
+    stdf["date"] = stdf["datetime"].dt.date
+    return stdf.groupby(["uid", "date"]).size().reset_index(name="num_stops")
+
+
+
+##############  MISCELLANEOUS  #################################################
 
 def add_zipcode(tdf, **kwargs):
 
@@ -299,7 +325,10 @@ available_funcs = {"mobility_filter": filtering.filter,
                    "random_location_entropy": collective.random_location_entropy,
                    "uncorrelated_location_entropy": collective.uncorrelated_location_entropy,
                    "add_zipcode": add_zipcode,
-                   "custom_filter": custom_filter}
+                   "custom_filter": custom_filter,
+                   "get_stop_counts": get_stop_counts,
+                   "get_daily_distance": get_daily_distance,
+                   "get_daily_stops": get_daily_stops}
 
 grouped_stats = {"mean": "mean",
                  "median": "median",

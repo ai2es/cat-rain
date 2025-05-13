@@ -21,7 +21,7 @@ n_workers: -1 # -1 to use all available CPU workers
 # Would result in compressing all the data with given args, then calculating the entropy and ROG
 # and merging the results. Filters apply one after another on the output of the previous filter result
 # Measures are calculated independently on the filter results (if any) and then merged together
-pipeline: ["uncorrelated_entropy", "radius_of_gyration", "distance_straight_line"]
+pipeline: ["uncorrelated_entropy", "radius_of_gyration", "distance_straight_line","get_stop_counts", "get_daily_distance", "get_daily_stops"]
 
 # The previous pipeline results in a metrics for each individual and includes their home location
 # Below in "grouped_analysis", if use==True, it will perform spatial and temporal aggregation and apply list stats
@@ -68,6 +68,20 @@ individual_measures:
   distance_straight_line:
     show_progress: False
 
+  get_stop_counts:
+    stop_radius_factor: 0.5
+    minutes_for_a_stop: 20.0
+    spatial_radius_km: 0.2
+    leaving_time: True
+
+  get_daily_distance: {}
+
+  get_daily_stops:
+    stop_radius_factor: 0.5
+    minutes_for_a_stop: 20.0
+    spatial_radius_km: 0.2
+    leaving_time: True
+
 ##################### COLLECTIVE METRICS ###############
 
 collective_measures:
@@ -84,6 +98,12 @@ collective_measures:
     normalize: False
     show_progress: False
 
+############ GROUPED ANALYSIS SETTINGS ############
+grouped_analysis:
+  use: True
+  spatial_agg: ["zipcode"]
+  temporal_agg: ["date"]
+  stats: ["mean", "median", "sum"]
 
 
 
