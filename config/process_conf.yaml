@@ -1,14 +1,28 @@
-base_data_path: ""
-data_prefix: ""
-key_file: ""
+#base_data_path: ""
+#data_prefix: ""
+#key_file: ""
+#save_out_path: ""
+base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
+data_prefix: "veraset"
+key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
+home_loc_file: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao_nofilters/home_loc_by_row_group.parquet"
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/derecho/scratch/cbecker/CAT_tutorial/CAT_analysis_data_20250424/"
-start_date: "2024-03-15"
-end_date: "2024-04-29"
-days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" amd "all"
+save_out_path: "/glade/derecho/scratch/ggantos/cat-rain-output/individual_metrics_daily/"
+start_date: "2024-03-14"
+end_date: "2024-04-30"
+days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" and "all"
 row_group_start_end: [] # empty [] will use all row groups [start, end]
 aggregation_type: "daily" # Supports "full" or "daily"; only applies to non_grouped_calcs
 n_workers: -1 # -1 to use all available CPU workers
+
+# (List) Should be keys under the "filters" or "measures"
+# Will operate sequentially in the defined order
+# Example: ["compress", "uncorrelated_entropy", "radius_of_gyration"]
+# Would result in compressing all the data with given args, then calculating the entropy and ROG
+# and merging the results. Filters apply one after another on the output of the previous filter result
+# Measures are calculated independently on the filter results (if any)
+# The previous pipeline results in a metrics for each individual and includes their home location
+# Below in "grouped_analysis", if use==True, it will perform spatial and temporal aggregation and apply list stats
 pipeline: ["get_max_distance_from_home", "number_of_visits", "distance_straight_line", "jump_lengths", "waiting_times"]
 grouped_analysis:
   use: False # ignores "grouped" calculations if False
@@ -16,8 +30,39 @@ grouped_analysis:
   temporal_agg: ["date"] # Currently only supports "date"
   stats: ["mean", "median", "sum"]
 
+########### HOME LOCATIONS ##########
+home_locations:
+  home_location_tao:
+      stop_radius_factor: 0.5
+      minutes_for_a_stop: 10.0
+      spatial_radius_km: 0.2
+      leaving_time: True
+      no_data_for_minutes: 1000000000000.0
+      min_speed_kmh: null
+      cluster_radius_km: 0.1
+      min_samples: 1
+      
 ########### FILTERING ##########
 filters:
+  pings_per_date_filter:
+    start_date: "2024-03-28"
+    end_date: "2024-03-30"
+    min_pings: 1
+
+  pings_per_daterange_filter:
+    start_date: ['2024-03-15', '2024-04-03']
+    end_date: ['2024-03-26', '2024-04-30']
+    min_pings: 1
+
+  pings_per_daterange_filter_copy1:
+    start_date: ['2024-03-27']
+    end_date: ['2024-04-02']
+    min_pings: 1
+    
+  horizontal_accuracy_and_speed_filter:
+    max_horizontal_accuracy: 800
+    max_speed_kmh: 128.7
+
   mobility_filter:
     max_speed_kmh: 200.0
     include_loops: False
@@ -61,7 +106,6 @@ individual_measures:
     kwargs: None
 
 ##################### COLLECTIVE METRICS ###############
-
 collective_measures:
   mean_square_displacement:
     days: 0
@@ -75,11 +119,3 @@ collective_measures:
   uncorrelated_location_entropy:
     normalize: False
     show_progress: False
-
-
-
-
-
-
-
-

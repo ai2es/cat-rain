@@ -2,9 +2,10 @@ import numpy as np
 import multiprocessing
 from multiprocessing import Pool
 import time
+from datetime import datetime
 import argparse
 import yaml
-from src.data import data_class,func_w_kwargs, write_home_loc_by_row_group, calc_home_location
+from src.data import data_class, function_pipe, calc_home_location, func_w_kwargs, write_home_loc_by_row_group
 import pandas as pd
 import os
 
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     data_class.set_attrs(config, load_key=True)  # set class attributes for file list, key_file, and metadata
     n_processors = config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count()
     row_groups = data_class.row_groups
-    f_kwargs = config['home_location_kwargs']
+    f_kwargs = function_pipe(config)
     f = func_w_kwargs(calc_home_location, f_kwargs)
     s = time.time()
     with Pool(processes=n_processors) as pool:
