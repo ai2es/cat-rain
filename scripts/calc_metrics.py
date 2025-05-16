@@ -20,7 +20,7 @@ if __name__ == "__main__":
     os.makedirs(config["save_out_path"], exist_ok=True)
     date_str = datetime.today().strftime("%Y%m%d")
     data_class.set_attrs(config) # set class attributes for file list, key_file, and metadata
-    n_processors =  config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count() ## try / 2
+    n_processors = config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count() ## try / 2
     row_groups = data_class.row_groups
     f_kwargs = function_pipe(config)
     f = func_w_kwargs(run_parallel, f_kwargs)
@@ -31,12 +31,12 @@ if __name__ == "__main__":
         results = result.get()
     print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete parallel computation.")
     s = time.time()
-
+    print(type(results))
+    combined_data = pd.concat(results)
+    print(combined_data.shape)
     if not config['grouped_analysis']["use"]:
-        results = data_class.save_data_out(results)
+        data_class.save_data_out(combined_data)
     else:
-        combined_data = pd.concat(results)
-
         group_cols = config["grouped_analysis"]["temporal_agg"] + config["grouped_analysis"]["spatial_agg"]
         grouped = combined_data.groupby(group_cols)
         groups = [g for g in grouped]
