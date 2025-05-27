@@ -48,7 +48,7 @@ def add_date(tdf, date):
     return tdf
 
 
-def run_parallel(row_group, filters, individual_measures):
+def run_parallel(row_group, filters, individual_measures, collective_measures, home_location):
     """ Run filtering and measure calculations for a specific row group on a specific CPU worker.
     Args:
         row_group (int): The row group to run calculations on.
@@ -297,24 +297,24 @@ def write_home_loc_by_row_group(data, out_path):
 
 def get_stop_counts(tdf, **kwargs):
     stdf = detection.stay_locations(tdf, **kwargs)
-    return stdf.groupby("uid").size().reset_index(name="num_stops")
+    return stdf.groupby(constants.UID).size().reset_index(name="num_stops")
 
 
 def get_daily_distance(tdf, **kwargs):
-    df = tdf.copy().sort_values(by=["uid", "datetime"])
-    df["lat_prev"] = df.groupby("uid")["latitude"].shift()
-    df["lon_prev"] = df.groupby("uid")["longitude"].shift()
-    df = df.dropna(subset=["lat_prev", "lon_prev"])
+    df = tdf.copy().sort_values(by=[constants.UID, constants.DATETIME])
+    df.loc[:, "lat_prev"] = df.groupby(constants.UID)[constants.LATITUDE].shift()
+    df.loc[:, "lon_prev"] = df.groupby(constants.UID)[constants.LONGITUDE].shift()
+    df = df.dropna(subset=["lat_prev", "lon_prev"], axis=0)
     df["distance"] = df.apply(lambda r: haversine(
-        (r["lat_prev"], r["lon_prev"]), (r["latitude"], r["longitude"]), unit=Unit.MILES), axis=1)
+        (r["lat_prev"], r["lon_prev"]), (r[constants.LATITUDE], r[constants.LONGITUDE]), unit=Unit.MILES), axis=1)
     df["date"] = df["datetime"].dt.date
-    return df.groupby(["uid", "date"])["distance"].sum().reset_index(name="distance_miles")
+    return df.groupby([constants.UID, "date"])["distance"].sum().reset_index(name="distance_miles")
 
 
 def get_daily_stops(tdf, **kwargs):
     stdf = detection.stay_locations(tdf, **kwargs)
     stdf["date"] = stdf["datetime"].dt.date
-    return stdf.groupby(["uid", "date"]).size().reset_index(name="num_stops")
+    return stdf.groupby([constants.UID, "date"]).size().reset_index(name="num_stops")
 
 
 
@@ -483,7 +483,7 @@ def calc_distance(df):
     df_samp = df.iloc[0:1]
     df_samp['max_distance_from_home'] = 0
     reference = (df_samp['home_lat'].values[0], df_samp['home_lon'].values[0])
-    points = list(zip(df['lat'].values, df['lng'].values))
+    points = list(zip(df[constants.LATITUDE].values, df[constants.LONGITUDE].values))
     max_dist = 0
     for point in points:
         dist = distance(reference, point).km
@@ -495,8 +495,8 @@ def calc_distance(df):
 
 def get_max_dist(tdf, home_tdf, **kwargs):
 
-    df_combined = pd.merge(tdf, home_tdf, on='uid', how='left')
-    return df_combined.groupby('uid').apply(calc_distance)
+    df_combined = pd.merge(tdf, home_tdf, on=constants.UID, how='left')
+    return df_combined.groupby(constants.UID).apply(calc_distance)
 
 
 available_funcs = {"mobility_filter": filtering.filter,
