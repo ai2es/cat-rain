@@ -309,7 +309,7 @@ def calc_distance(df):
 
 def get_max_dist(tdf, home_tdf, **kwargs):
 
-    df_combined = pd.merge(tdf, home_tdf, on='uid', how='left')
+    df_combined = pd.merge(tdf, home_tdf, on='uid', how='inner')
     return df_combined.groupby('uid').apply(calc_distance)
 
 
@@ -330,7 +330,6 @@ available_funcs = {"mobility_filter": filtering.filter,
                    "random_location_entropy": collective.random_location_entropy,
                    "uncorrelated_location_entropy": collective.uncorrelated_location_entropy,
                    "add_zipcode": add_zipcode,
-                   "custom_filter": custom_filter}
 
 grouped_stats = {"mean": "mean",
                  "median": "median",
