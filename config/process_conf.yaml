@@ -1,15 +1,16 @@
-base_data_path: ""
-data_prefix: ""
-key_file: ""
+base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
+data_prefix: "veraset"
+key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
+home_loc_file: '/glade/derecho/scratch/ggantos/CAT/home_locations_tao_filtered/home_loc_by_row_group.parquet'
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/derecho/scratch/cbecker/CAT_tutorial/CAT_analysis_data_20250424/"
+save_out_path: ""
 start_date: "2024-03-15"
-end_date: "2024-04-29"
+end_date: "2024-04-25"
 days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" amd "all"
 row_group_start_end: [] # empty [] will use all row groups [start, end]
 aggregation_type: "daily" # Supports "full" or "daily"; only applies to non_grouped_calcs
 n_workers: -1 # -1 to use all available CPU workers
-pipeline: ["get_max_distance_from_home", "number_of_visits", "distance_straight_line", "jump_lengths", "waiting_times"]
+pipeline: ["mobility_filter", "get_max_distance_from_home", "number_of_visits", "distance_straight_line", "jump_lengths", "waiting_times", "radius_of_gyration"]
 grouped_analysis:
   use: False # ignores "grouped" calculations if False
   spatial_agg: ["zipcode"]
