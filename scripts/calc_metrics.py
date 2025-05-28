@@ -31,9 +31,7 @@ if __name__ == "__main__":
         results = result.get()
     print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete parallel computation.")
     s = time.time()
-    print(type(results))
     combined_data = pd.concat(results)
-    print(combined_data.shape)
     if not config['grouped_analysis']["use"]:
         data_class.save_data_out(combined_data)
     else:
