@@ -16,6 +16,8 @@ from shapely import STRtree, Point
 from copy import copy
 from os.path import join
 from geopy.distance import distance
+import plotly.express as px
+import plotly.graph_objects as go
 # import pygeos
 
 
@@ -47,8 +49,98 @@ def add_date(tdf, date):
 
     return tdf
 
+def plot_summary(summary, title):
+    length = summary.shape[0]//3
+    labels = ["Base"] + [f"Filter {i}" for i in range(length)]
+    colors = px.colors.qualitative.Plotly[:length]
+    mode_size = [8]*length
+    line_size = [2]*length
+    
+    x_data = np.vstack([summary.columns[1:]]*length)
+    y_data = summary.loc[:, :, title][summary.columns[1:]].values
+    
+    fig = go.Figure()
+    
+    for i in range(0, length):
+        fig.add_trace(go.Scatter(x=x_data[i], y=y_data[i], mode='lines',
+                                 name=labels[i],
+                                 line=dict(color=colors[i], width=line_size[i]),
+                                 connectgaps=True))
+        # endpoints
+        fig.add_trace(go.Scatter(x=[x_data[i][0], x_data[i][-1]],
+                                 y=[y_data[i][0], y_data[i][-1]],
+                                 mode='markers',
+                                 marker=dict(color=colors[i], size=mode_size[i])))
+    
+    fig.update_layout(
+        xaxis=dict(showline=True,
+                   showgrid=False,
+                   showticklabels=True,
+                   linecolor='rgb(204, 204, 204)',
+                   linewidth=2,
+                   ticks='outside',
+                   tickfont=dict(family='Arial',
+                                 size=12,
+                                 color='rgb(82, 82, 82)')),
+        yaxis=dict(showgrid=False,
+                   zeroline=False,
+                   showline=False,
+                   showticklabels=False),
+        autosize=False,
+        margin=dict(autoexpand=False,
+                    l=100,
+                    r=20,
+                    t=110),
+        showlegend=False,
+        plot_bgcolor='white')
+    
+    annotations = []
+    for y_trace, label, color in zip(y_data, labels, colors):
+        annotations.append(dict(xref='paper', x=0.05, y=y_trace[0],
+                                      xanchor='right', yanchor='middle',
+                                      text=label,
+                                      font=dict(family='Arial',
+                                                size=16),
+                                      showarrow=False))
+    annotations.append(dict(xref='paper', yref='paper', x=0.0, y=1.05,
+                            xanchor='left', yanchor='bottom',
+                            text=title,
+                            font=dict(family='Arial',
+                                      size=30,
+                                      color='rgb(37,37,37)'),
+                            showarrow=False))
+    fig.update_layout(annotations=annotations)
+    fig.write_image(os.path.join(data_class.save_out_path, f"{title}.png"), scale=1)
+    return
 
-def run_parallel(row_group, filters, individual_measures, collective_measures, home_location):
+
+def create_summary(ix_funcs, ix_kwargs, conf):
+    index = pd.MultiIndex.from_arrays([ix_funcs,
+                                       ix_kwargs,
+                                       ["Unique Users", "Total Pings", "Pings per User"]*(len(ix_funcs)//3)],
+                                      names=("Filter", "Filter Arguments", "Metric"))
+    date_range = pd.date_range(start=conf["start_date"], end=conf["end_date"], freq='d')
+    summary = pd.DataFrame(data=0, index=index, columns=["Total"]+[str(dt.date()) for dt in date_range])
+    return summary
+
+def data_monitor(tdf, filter, args, summary):
+    tdf.loc[:, "date"] = tdf[constants.DATETIME].dt.date
+    pings = pd.DataFrame([tdf.groupby(["date"])["uid"].size()]).rename(index={"uid": "Total Pings"})
+    nusers = pd.DataFrame([tdf.groupby("date")["uid"].nunique()]).rename(index={"uid": "Unique Users"})
+    summary.loc[[(filter, args, "Total Pings")]] = summary.loc[[(filter, args, "Total Pings")]].add(pings, axis=1, level=2, fill_value=0)
+    summary.loc[[(filter, args, "Unique Users")]] = summary.loc[[(filter, args, "Unique Users")]].add(nusers, axis=1, level=2, fill_value=0)
+    return summary
+
+def save_summary(summary):
+    summary.loc[:, "Total"] = summary.loc[:, summary.columns[1:]].sum(axis=1)
+    for i in range(0, summary.shape[0], 3):
+        summary.iloc[i+2] = summary.iloc[i] / summary.iloc[i+1]
+    summary.to_parquet(os.path.join(data_class.save_out_path, "summary.parquet"))
+    for title in ["Unique Users", "Pings per User"]:
+        plot_summary(summary, title)
+    return
+
+def run_parallel(row_group, filters, individual_measures, collective_measures, home_location, summary):
     """ Run filtering and measure calculations for a specific row group on a specific CPU worker.
     Args:
         row_group (int): The row group to run calculations on.
@@ -62,9 +154,16 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
     home = get_row_group_home(row_group).rename(columns={'lng': 'home_lon', 'lat': 'home_lat'})
     processed_tdfs = []
     for i, tdf in enumerate(tdfs):
+        # summary = data_monitor(tdf, "None", "None", summary)
+        
         if len(filters) > 0:
-            for filter in filters:
+            for i,filter in enumerate(filters):
                 tdf = filter(tdf)
+            #     filter_name = summary.index.get_level_values(0)[i*3+3]
+            #     filter_args = summary.index.get_level_values(1)[i*3+3]
+            #     summary = data_monitor(tdf, filter_name, filter_args, summary)
+            # save_summary(summary)
+            
         if get_max_dist in [x.func for x in individual_measures]: ### Custom logic for function that requires home loc
             individual_measures = [x for x in individual_measures if x.func != get_max_dist]
             individual_measures.append(partial(get_max_dist, home_tdf=home))
@@ -88,10 +187,13 @@ def function_pipe(conf):
     """ Create partials (functions with predefined kwargs) for each filter and measurement. """
 
     filter_funcs, ind_measure_funcs, home_location_funcs, col_measure_funcs = [], [], [], []
+    ix_funcs, ix_kwargs = ["None"]*3, ["None"]*3
     for f in conf['pipeline']:
         if f in conf["filters"]:
             kwargs = conf["filters"][f]
             filter_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
+            ix_funcs += [f]*3
+            ix_kwargs += [str(kwargs)]*3
         elif f in conf["individual_measures"]:
             kwargs = conf["individual_measures"][f]
             ind_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
@@ -103,8 +205,10 @@ def function_pipe(conf):
             col_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
         else:
             raise NameError("Function not found.")
+        
+        summary = create_summary(ix_funcs, ix_kwargs, conf)
 
-    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "collective_measures": col_measure_funcs, "home_location": home_location_funcs}
+    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "collective_measures": col_measure_funcs, "home_location": home_location_funcs, "summary": summary}
 
 
 def ensure_list(obj):
@@ -304,7 +408,8 @@ def get_daily_distance(tdf, **kwargs):
     df = tdf.copy().sort_values(by=[constants.UID, constants.DATETIME])
     df.loc[:, "lat_prev"] = df.groupby(constants.UID)[constants.LATITUDE].shift()
     df.loc[:, "lon_prev"] = df.groupby(constants.UID)[constants.LONGITUDE].shift()
-    df = df.dropna(subset=["lat_prev", "lon_prev"], axis=0)
+    df = pd.DataFrame(df).dropna(subset=["lat_prev", "lon_prev"], axis=0)
+    df = TrajDataFrame(df, user_id=constants.UID, datetime=constants.DATETIME, latitude=constants.LATITUDE, longitude=constants.LONGITUDE)
     df["distance"] = df.apply(lambda r: haversine(
         (r["lat_prev"], r["lon_prev"]), (r[constants.LATITUDE], r[constants.LONGITUDE]), unit=Unit.MILES), axis=1)
     df["date"] = df["datetime"].dt.date
@@ -482,7 +587,7 @@ def calc_distance(df):
 
     df_samp = df.iloc[0:1]
     df_samp['max_distance_from_home'] = 0
-    reference = (df_samp['home_lat'].values[0], df_samp['home_lon'].values[0])
+    reference = (df_samp['lat'].values[0], df_samp['lng'].values[0])
     points = list(zip(df[constants.LATITUDE].values, df[constants.LONGITUDE].values))
     max_dist = 0
     for point in points:

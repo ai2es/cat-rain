@@ -7,11 +7,11 @@ data_prefix: "veraset"
 key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
 home_loc_file: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao/home_loc_by_row_group.parquet"
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data/"
+save_out_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data_nosummary/"
 start_date: "2024-03-15"
 end_date: "2024-04-25"
 days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" and "all"
-row_group_start_end: [1,3] # empty [] will use all row groups [start, end]
+row_group_start_end: [] # empty [] will use all row groups [start, end]
 aggregation_type: "daily" # Supports "full" or "daily"; only applies to non_grouped_calcs
 n_workers: -1 # -1 to use all available CPU workers
 

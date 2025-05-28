@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #PBS -N cat
 #PBS -A NAML0001
-#PBS -l walltime=01:00:00
+#PBS -l walltime=04:00:00
 #PBS -j oe
 #PBS -q main
 #PBS -l select=1:ompthreads=2
