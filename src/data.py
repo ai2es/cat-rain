@@ -8,7 +8,6 @@ from skmob.utils import utils, constants
 from skmob.core.trajectorydataframe import TrajDataFrame
 from skmob.measures import individual, collective
 from skmob.preprocessing import filtering, compression, detection, clustering
-from skmob.preprocessing import detection
 from haversine import haversine, Unit
 from functools import partial, reduce
 import geopandas as gpd
@@ -205,7 +204,6 @@ def function_pipe(conf):
             col_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
         else:
             raise NameError("Function not found.")
-        
         summary = create_summary(ix_funcs, ix_kwargs, conf)
 
     return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "collective_measures": col_measure_funcs, "home_location": home_location_funcs, "summary": summary}
@@ -400,27 +398,26 @@ def write_home_loc_by_row_group(data, out_path):
 
 
 def get_stop_counts(tdf, **kwargs):
-    stdf = detection.stay_locations(tdf, **kwargs)
+    stdf = detection.stops(tdf, **kwargs)
     return stdf.groupby(constants.UID).size().reset_index(name="num_stops")
 
 
 def get_daily_distance(tdf, **kwargs):
-    df = tdf.copy().sort_values(by=[constants.UID, constants.DATETIME])
-    df.loc[:, "lat_prev"] = df.groupby(constants.UID)[constants.LATITUDE].shift()
-    df.loc[:, "lon_prev"] = df.groupby(constants.UID)[constants.LONGITUDE].shift()
-    df = pd.DataFrame(df).dropna(subset=["lat_prev", "lon_prev"], axis=0)
-    df = TrajDataFrame(df, user_id=constants.UID, datetime=constants.DATETIME, latitude=constants.LATITUDE, longitude=constants.LONGITUDE)
+    df = pd.DataFrame(tdf).sort_values(by=[constants.UID, constants.DATETIME])
+    df["lat_prev"] = df.groupby(constants.UID)[constants.LATITUDE].shift()
+    df["lng_prev"] = df.groupby(constants.UID)[constants.LONGITUDE].shift()
+    df = df.dropna(subset=["lat_prev", "lng_prev"])
     df["distance"] = df.apply(lambda r: haversine(
-        (r["lat_prev"], r["lon_prev"]), (r[constants.LATITUDE], r[constants.LONGITUDE]), unit=Unit.MILES), axis=1)
-    df["date"] = df["datetime"].dt.date
-    return df.groupby([constants.UID, "date"])["distance"].sum().reset_index(name="distance_miles")
+        (r["lat_prev"], r["lng_prev"]), (r[constants.LATITUDE], r[constants.LONGITUDE])), axis=1)
+    df["date"] = df[constants.DATETIME].dt.date
+    tdf = TrajDataFrame(df)
+    return tdf.groupby([constants.UID, "date"])["distance"].sum().reset_index(name="distance_km")
 
-
-def get_daily_stops(tdf, **kwargs):
-    stdf = detection.stay_locations(tdf, **kwargs)
-    stdf["date"] = stdf["datetime"].dt.date
-    return stdf.groupby([constants.UID, "date"]).size().reset_index(name="num_stops")
-
+# NOT needed since daily stats are controlled through "agg type" in config
+# def get_daily_stops(tdf, **kwargs):
+#     stdf = detection.stops(tdf, **kwargs)
+#     # stdf["date"] = stdf["datetime"].dt.date
+#     return stdf.groupby(["uid", "date"]).size().reset_index(name="num_stops")
 
 
 ##############  MISCELLANEOUS  #################################################
@@ -599,8 +596,7 @@ def calc_distance(df):
 
 
 def get_max_dist(tdf, home_tdf, **kwargs):
-
-    df_combined = pd.merge(tdf, home_tdf, on=constants.UID, how='left')
+    df_combined = pd.merge(tdf, home_tdf, on=constants.UID, how='inner')
     return df_combined.groupby(constants.UID).apply(calc_distance)
 
 
@@ -629,7 +625,7 @@ available_funcs = {"mobility_filter": filtering.filter,
                    "custom_filter": custom_filter,
                    "get_stop_counts": get_stop_counts,
                    "get_daily_distance": get_daily_distance,
-                   "get_daily_stops": get_daily_stops}
+                   "number_of_stops": get_stop_counts}
 
 grouped_stats = {"mean": "mean",
                  "median": "median",

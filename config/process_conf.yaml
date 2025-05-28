@@ -1,13 +1,9 @@
-#base_data_path: ""
-#data_prefix: ""
-#key_file: ""
-#save_out_path: ""
 base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
 data_prefix: "veraset"
 key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
 home_loc_file: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao/home_loc_by_row_group.parquet"
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data_nosummary/"
+save_out_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data_summary/"
 start_date: "2024-03-15"
 end_date: "2024-04-25"
 days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" and "all"
@@ -22,6 +18,7 @@ n_workers: -1 # -1 to use all available CPU workers
 # and merging the results. Filters apply one after another on the output of the previous filter result
 # Measures are calculated independently on the filter results (if any) and then merged together
 pipeline: ["pings_per_date_filter", "mobility_filter", "get_max_distance_from_home", "number_of_visits", "distance_straight_line", "jump_lengths", "radius_of_gyration", "get_daily_distance", "get_daily_stops"]
+pipeline: ["pings_per_date_filter", "mobility_filter"]
 
 grouped_analysis:
   use: False # ignores "grouped" calculations if False
@@ -40,7 +37,7 @@ home_locations:
       min_speed_kmh: null
       cluster_radius_km: 0.1
       min_samples: 1
-      
+
 ########### FILTERING ##########
 filters:
   pings_per_date_filter:
@@ -57,7 +54,7 @@ filters:
     start_date: ['2024-03-27']
     end_date: ['2024-04-02']
     min_pings: 1
-    
+
   horizontal_accuracy_and_speed_filter:
     max_horizontal_accuracy: 800
     max_speed_kmh: 128.7
@@ -106,6 +103,21 @@ individual_measures:
     spatial_radius_km: 0.2
     leaving_time: True
 
+  waiting_times:
+    show_progress: False
+
+  radius_of_gyration:
+    show_progress: False
+
+  get_daily_distance:
+    kwargs: None
+
+  number_of_stops:
+    stop_radius_factor: 0.5
+    minutes_for_a_stop: 20.0
+    spatial_radius_km: 0.2
+    leaving_time: True
+
   real_entropy:
     show_progress: False
 
@@ -114,19 +126,19 @@ individual_measures:
     show_progress: False
 
 ##################### COLLECTIVE METRICS ###############
-collective_measures:
-  mean_square_displacement:
-    days: 0
-    hours: 1
-    minutes: 0
-    show_progress: False
-
-  random_location_entropy:
-    show_progress: False
-
-  uncorrelated_location_entropy:
-    normalize: False
-    show_progress: False
+#collective_measures:
+#  mean_square_displacement:
+#    days: 0
+#    hours: 1
+#    minutes: 0
+#    show_progress: False
+#
+#  random_location_entropy:
+#    show_progress: False
+#
+#  uncorrelated_location_entropy:
+#    normalize: False
+#    show_progress: False
 
 
 
