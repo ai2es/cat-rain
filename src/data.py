@@ -153,6 +153,8 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
                     filter_name = summary.index.get_level_values(0)[j*3+3]
                     filter_args = summary.index.get_level_values(1)[j*3+3]
                     summary = data_monitor(tdf, filter_name, filter_args, summary)
+        if tdf.shape[0] == 0:
+            continue
             
         if max_distance_from_home_static in [x.func for x in individual_measures]: ### Custom logic for function that requires home loc
             individual_measures = [x for x in individual_measures if x.func != max_distance_from_home_static]
