@@ -128,7 +128,7 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
         List of pandas DataFrames with merged metrics on filtered data.
     """
     tdfs = get_row_group_trajectories(row_group)
-    home = get_row_group_home(row_group).rename(columns={'lng':'home_lon', 'lat':'home_lat'})
+    home = get_row_group_home(row_group).rename(columns={'lng':'home_lng', 'lat':'home_lat'})
     processed_tdfs = []
 
     if min_pings_per_date_filter in [f.func for f in filters]:
@@ -147,12 +147,15 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
             for j,filter in enumerate(filters):
                 if min_pings_per_date_filter in [filter.func]:
                     tdf = tdf[tdf[constants.UID].isin(uids_int)]
+                    shape_pings = tdf.shape
                 elif tdf.shape[0] != 0:
-                    tdf = filter(tdf.reset_index())
+                    tdf = filter(tdf)
                 if tdf.shape[0] != 0:
                     filter_name = summary.index.get_level_values(0)[j*3+3]
                     filter_args = summary.index.get_level_values(1)[j*3+3]
                     summary = data_monitor(tdf, filter_name, filter_args, summary)
+            shape_filter = tdf.shape
+        
         if tdf.shape[0] == 0:
             continue
             
@@ -161,18 +164,23 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
             individual_measures.append(partial(max_distance_from_home_static, home_tdf=home))
 
         if len(individual_measures) > 0:
-            print(tdf.index)
-            print(tdf.columns)
-            measure_dfs = [measure(tdf.reset_index()) for measure in individual_measures]
+            measure_dfs = [measure(tdf) for measure in individual_measures]
+            print("After ping filter: ", shape_filter)
+            print("After all filters: ", shape_filter)
+            print("Measures: ", len(measure_dfs), [df.shape for df in measure_dfs])
+            print("Measures: ", [df for df in measure_dfs])
             tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), measure_dfs)
 
         if data_class.aggregation_type == "full":
             date_str = data_class.dates[0].strftime("%Y-%m-%d_") + data_class.dates[-1].strftime("%Y-%m-%d")
             tdf = add_date(tdf, date_str)
         else:
+            shape_wout_date = tdf.shape
             tdf = add_date(tdf, data_class.dates[i])
+            print("DAILY", shape_wout_date, tdf.shape)
 
         processed_tdfs.append(tdf)
+        print("Processed_tdfs", len(processed_tdfs))
     merged_data = pd.merge(home, pd.concat(processed_tdfs), on='uid')
     save_summary(summary)
     return merged_data
@@ -500,7 +508,7 @@ def _max_distance_from_home_static_individual(df):
 
     df_samp = df.iloc[0:1]
     df_samp['max_distance_from_home'] = 0
-    reference = (df_samp['lat'].values[0], df_samp['lng'].values[0])
+    reference = (df_samp['home_lat'].values[0], df_samp['home_lng'].values[0])
     points = list(zip(df[constants.LATITUDE].values, df[constants.LONGITUDE].values))
     max_dist = 0
     for point in points:
@@ -512,13 +520,16 @@ def _max_distance_from_home_static_individual(df):
 
 
 def max_distance_from_home_static(tdf, home_tdf, **kwargs):
-    df_combined = pd.merge(tdf, home_tdf, on=constants.UID, how='inner')
-    return df_combined.groupby(constants.UID).apply(calc_distance)
+    df_combined = tdf.merge(home_tdf, how='inner', on=constants.UID)
+    print("Max Dist TDF shape: ", tdf.shape)
+    print("Max Dist TDF shape after combining: ", df_combined.shape)
+    return df_combined.groupby(constants.UID).apply(_max_distance_from_home_static_individual)
 
 
 def stay_locations_count(tdf, **kwargs):
     stdf = detection.stay_locations(tdf, **kwargs)
-    return stdf.groupby(constants.UID).size().reset_index(name="num_stops")
+    print(stdf.groupby(constants.UID).size())
+    return stdf.groupby(constants.UID).size()
     
 
 available_funcs = {"mobility_filter": filtering.filter,

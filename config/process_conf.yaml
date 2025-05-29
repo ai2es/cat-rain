@@ -86,9 +86,7 @@ individual_measures:
     stop_radius_factor: 0.5
     minutes_for_a_stop: 20.0
     spatial_radius_km: 0.2
-    leaving_time: True
-    no_data_for_minutes: 1e12
-    min_speed_kmh: None
+    leaving_time: False
 
   real_entropy:
     show_progress: False
