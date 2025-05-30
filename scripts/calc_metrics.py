@@ -19,6 +19,8 @@ if __name__ == "__main__":
     with open(args.config) as config_file:
         config = yaml.safe_load(config_file)
     os.makedirs(config["save_out_path"], exist_ok=True)
+    with open(join(config["save_out_path"], "process_conf.yaml"), 'w') as outfile:
+        yaml.dump(config, outfile, default_flow_style=False)
     date_str = datetime.today().strftime("%Y%m%d")
     data_class.set_attrs(config) # set class attributes for file list, key_file, and metadata
     n_processors = config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count() ## try / 2

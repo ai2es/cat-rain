@@ -15,6 +15,7 @@ from shapely import STRtree, Point
 from copy import copy
 from os.path import join
 from geopy.distance import distance
+import plotly
 import plotly.express as px
 import plotly.graph_objects as go
 # import pygeos
@@ -28,8 +29,8 @@ def plot_summary(summary, title):
     mode_size = [8]*length
     line_size = [2]*length
     
-    x_data = np.vstack([summary.columns[1:]]*length)
-    y_data = summary.loc[:, :, title][summary.columns[1:]].values
+    x_data = np.vstack([summary.columns[:-1]]*length)
+    y_data = summary.loc[:, :, title][summary.columns[:-1]].values
     
     fig = go.Figure()
     
@@ -38,11 +39,13 @@ def plot_summary(summary, title):
                                  name=labels[i],
                                  line=dict(color=colors[i], width=line_size[i]),
                                  connectgaps=True))
-        # endpoints
-        fig.add_trace(go.Scatter(x=[x_data[i][0], x_data[i][-1]],
-                                 y=[y_data[i][0], y_data[i][-1]],
+        # endpoints & min/max
+        idx_max = np.argmax(y_data[i])
+        idx_min = np.argmin(y_data[i]) 
+        fig.add_trace(go.Scatter(x=[x_data[i][0], x_data[i][-1], x_data[i][idx_max], x_data[i][idx_min]],
+                                 y=[y_data[i][0], y_data[i][-1], y_data[i][idx_max], y_data[i][idx_min]],
                                  mode='markers',
-                                 marker=dict(color=colors[i], size=mode_size[i])))
+                                 marker=dict(color=colors[i], size=mode_size[i]+2)))
     
     fig.update_layout(
         xaxis=dict(showline=True,
@@ -60,20 +63,52 @@ def plot_summary(summary, title):
                    showticklabels=False),
         autosize=False,
         margin=dict(autoexpand=False,
-                    l=100,
-                    r=20,
+                    l=50,
+                    r=300,
                     t=110),
         showlegend=False,
         plot_bgcolor='white')
     
     annotations = []
-    for y_trace, label, color in zip(y_data, labels, colors):
+    for y_trace, x_trace, label, color in zip(y_data, x_data, labels, colors):
+        idx_max = np.argmax(y_trace)
+        idx_min = np.argmin(y_trace)    
+        if isinstance(y_trace[0], int):
+            ymax = f'{y_trace[idx_max]:,}'
+            ymin = f'{y_trace[idx_min]:,}'
+            ymean = f'{y_trace.mean():,}'
+        else:
+            ymax = f'{y_trace[idx_max]:.2f}'
+            ymin = f'{y_trace[idx_min]:.2f}'
+            ymean = f'{y_trace.mean():.2f}'
+        xmax = x_trace[idx_max]
+        xmin = x_trace[idx_min]
+        
         annotations.append(dict(xref='paper', x=0.05, y=y_trace[0],
                                       xanchor='right', yanchor='middle',
                                       text=label,
                                       font=dict(family='Arial',
                                                 size=16),
                                       showarrow=False))
+        annotations.append(dict(xref='paper', x=1.05, y=ymax,
+                                      xanchor='left', yanchor='middle',
+                                      text=f"Max {xmax.month}/{xmax.day}: {ymax}",
+                                      font=dict(family='Arial',
+                                                size=16),
+                                      showarrow=True))
+        annotations.append(dict(xref='paper', x=1.05, y=ymin,
+                                      xanchor='left', yanchor='middle',
+                                      text=f"Min {xmin.month}/{xmin.day}: {ymin}",
+                                      font=dict(family='Arial',
+                                                size=16),
+                                      showarrow=True))
+        annotations.append(dict(xref='paper', x=1.05, y=ymean,
+                                      xanchor='left', yanchor='middle',
+                                      text=f"Avg: {ymean}",
+                                      font=dict(family='Arial',
+                                                size=16),
+                                      showarrow=False))
+    
     annotations.append(dict(xref='paper', yref='paper', x=0.0, y=1.05,
                             xanchor='left', yanchor='bottom',
                             text=title,
@@ -82,7 +117,9 @@ def plot_summary(summary, title):
                                       color='rgb(37,37,37)'),
                             showarrow=False))
     fig.update_layout(annotations=annotations)
-    fig.write_image(os.path.join(data_class.save_out_path, f"{title}.png"), scale=1)
+    filename = os.path.join(data_class.save_out_path, f"{title.replace(' ', '_')}.png")
+    plotly.offline.plot(fig, filename=filename.replace(".png", ".html"))
+    fig.write_image(filename, scale=1)
     return
 
 
