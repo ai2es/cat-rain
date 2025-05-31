@@ -74,13 +74,13 @@ def plot_summary(summary, title):
         idx_max = np.argmax(y_trace)
         idx_min = np.argmin(y_trace)    
         if isinstance(y_trace[0], int):
-            ymax = f'{y_trace[idx_max]:,}'
-            ymin = f'{y_trace[idx_min]:,}'
-            ymean = f'{y_trace.mean():,}'
+            ymax = f'{y_trace[idx_max]:,0f}'
+            ymin = f'{y_trace[idx_min]:,0f}'
+            ymean = f'{y_trace.mean():,0f}'
         else:
-            ymax = f'{y_trace[idx_max]:.2f}'
-            ymin = f'{y_trace[idx_min]:.2f}'
-            ymean = f'{y_trace.mean():.2f}'
+            ymax = f'{y_trace[idx_max]:.3f}'
+            ymin = f'{y_trace[idx_min]:.3f}'
+            ymean = f'{y_trace.mean():.3f}'
         xmax = x_trace[idx_max]
         xmin = x_trace[idx_min]
         
@@ -95,13 +95,13 @@ def plot_summary(summary, title):
                                       text=f"Max {xmax.month}/{xmax.day}: {ymax}",
                                       font=dict(family='Arial',
                                                 size=16),
-                                      showarrow=True))
+                                      showarrow=False))
         annotations.append(dict(xref='paper', x=1.05, y=ymin,
                                       xanchor='left', yanchor='middle',
                                       text=f"Min {xmin.month}/{xmin.day}: {ymin}",
                                       font=dict(family='Arial',
                                                 size=16),
-                                      showarrow=True))
+                                      showarrow=False))
         annotations.append(dict(xref='paper', x=1.05, y=ymean,
                                       xanchor='left', yanchor='middle',
                                       text=f"Avg: {ymean}",
@@ -175,6 +175,8 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
             uids.append(filter(tdf))
         uids = [u for u in uids if u != []]
         uids_int = list(set.intersection(*map(set, uids)))
+    if len(uids_int) == 0:
+        return None
     
     for i, tdf in enumerate(tdfs):
         summary = data_monitor(tdf, "None", "None", summary)

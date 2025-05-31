@@ -4,7 +4,7 @@
 #PBS -l walltime=00:10:00
 #PBS -j oe
 #PBS -q main
-#PBS -l select=1:ompthreads=2
+#PBS -l select=1:ompthreads=2:mem=235GB
 #PBS -m a
 #PBS -M ggantos@ucar.edu
 module load conda
