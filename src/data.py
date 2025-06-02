@@ -24,30 +24,40 @@ import plotly.graph_objects as go
 ## MOVE TO PLOTTING FILE WHEN FINISHED
 def plot_summary(summary, title):
     length = summary.shape[0]//3
-    labels = ["Base"] + [f"Filter {i}" for i in range(length)]
-    colors = px.colors.qualitative.Plotly[:length]
+    labels = ["Base"] + [f"Filter {i}" for i in range(1, length)]
+    colors = px.colors.qualitative.Plotly
     mode_size = [8]*length
     line_size = [2]*length
     
     x_data = np.vstack([summary.columns[:-1]]*length)
     y_data = summary.loc[:, :, title][summary.columns[:-1]].values
+    remove_rows = []
+    for i in range(y_data.shape[0]-1):
+        if np.isclose(y_data[i], y_data[i+1]).all():
+            remove_rows.append(i+1)
+    for idx in remove_rows:
+        y_data = np.delete(y_data, idx, axis=0)
+        labels[idx-1] = labels[idx-1]+" & "+labels[idx]
+        labels.remove(labels[idx])
     
     fig = go.Figure()
     
-    for i in range(0, length):
+    for i in range(0, length-len(remove_rows)):
         fig.add_trace(go.Scatter(x=x_data[i], y=y_data[i], mode='lines',
                                  name=labels[i],
                                  line=dict(color=colors[i], width=line_size[i]),
                                  connectgaps=True))
         # endpoints & min/max
         idx_max = np.argmax(y_data[i])
-        idx_min = np.argmin(y_data[i]) 
-        fig.add_trace(go.Scatter(x=[x_data[i][0], x_data[i][-1], x_data[i][idx_max], x_data[i][idx_min]],
-                                 y=[y_data[i][0], y_data[i][-1], y_data[i][idx_max], y_data[i][idx_min]],
+        idx_min = np.argmin(y_data[i])
+        fig.add_trace(go.Scatter(x=[x_data[i][idx_max], x_data[i][idx_min]],
+                                 y=[y_data[i][idx_max], y_data[i][idx_min]],
                                  mode='markers',
                                  marker=dict(color=colors[i], size=mode_size[i]+2)))
     
     fig.update_layout(
+        width=1600,
+        height=800,
         xaxis=dict(showline=True,
                    showgrid=False,
                    showticklabels=True,
@@ -57,60 +67,54 @@ def plot_summary(summary, title):
                    tickfont=dict(family='Arial',
                                  size=12,
                                  color='rgb(82, 82, 82)')),
-        yaxis=dict(showgrid=False,
+        yaxis=dict(range=[0, round(y_data.max()*1.10, -6)],
+                   showgrid=False,
                    zeroline=False,
                    showline=False,
-                   showticklabels=False),
+                   showticklabels=True),
         autosize=False,
         margin=dict(autoexpand=False,
-                    l=50,
-                    r=300,
-                    t=110),
+                    l=150,
+                    r=250,
+                    t=50,
+                    b=100),
         showlegend=False,
         plot_bgcolor='white')
     
     annotations = []
-    for y_trace, x_trace, label, color in zip(y_data, x_data, labels, colors):
+    for y_trace, x_trace, y_tot, label, color in zip(y_data, x_data, y_total, labels, colors):
         idx_max = np.argmax(y_trace)
-        idx_min = np.argmin(y_trace)    
-        if isinstance(y_trace[0], int):
-            ymax = f'{y_trace[idx_max]:,0f}'
-            ymin = f'{y_trace[idx_min]:,0f}'
-            ymean = f'{y_trace.mean():,0f}'
+        idx_min = np.argmin(y_trace)
+        xmax, xmin = x_trace[idx_max], x_trace[idx_min]
+        ymax, ymin = y_trace[idx_max], y_trace[idx_min]
+        if "Unique" in title:
+            ymax_label = f'{ymax:,.0f}'
+            ymin_label = f'{ymin:,.0f}'
+            ymean_label = f'{y_trace.mean():,.0f}'
+            y_tot_label = f"{y_tot:,.0f}"
         else:
-            ymax = f'{y_trace[idx_max]:.3f}'
-            ymin = f'{y_trace[idx_min]:.3f}'
-            ymean = f'{y_trace.mean():.3f}'
-        xmax = x_trace[idx_max]
-        xmin = x_trace[idx_min]
-        
-        annotations.append(dict(xref='paper', x=0.05, y=y_trace[0],
+            ymax_label = f'{ymax:.3f}'
+            ymin_label = f'{ymin:.3f}'
+            ymean_label = f'{y_trace.mean():.3f}'
+            y_tot_label = f"{y_tot:,.3f}"
+
+        annotations.append(dict(xref='paper', yref='y', x=-0.005, y=y_trace[0],
                                       xanchor='right', yanchor='middle',
-                                      text=label,
+                                      text=f"{label}<br>Total: {y_tot_label}",
                                       font=dict(family='Arial',
-                                                size=16),
+                                                size=16, color=color),
                                       showarrow=False))
-        annotations.append(dict(xref='paper', x=1.05, y=ymax,
+        annotations.append(dict(xref='paper', yref='y', x=1.02, y=y_trace.mean(),
                                       xanchor='left', yanchor='middle',
-                                      text=f"Max {xmax.month}/{xmax.day}: {ymax}",
+                                      text=f"Max {xmax.month}/{xmax.day}: {ymax_label}<br>"+
+                                           f"Avg: {ymean_label}<br>"+
+                                           f"Min {xmin.month}/{xmin.day}: {ymin_label}",
                                       font=dict(family='Arial',
-                                                size=16),
-                                      showarrow=False))
-        annotations.append(dict(xref='paper', x=1.05, y=ymin,
-                                      xanchor='left', yanchor='middle',
-                                      text=f"Min {xmin.month}/{xmin.day}: {ymin}",
-                                      font=dict(family='Arial',
-                                                size=16),
-                                      showarrow=False))
-        annotations.append(dict(xref='paper', x=1.05, y=ymean,
-                                      xanchor='left', yanchor='middle',
-                                      text=f"Avg: {ymean}",
-                                      font=dict(family='Arial',
-                                                size=16),
+                                                size=16, color=color),
                                       showarrow=False))
     
-    annotations.append(dict(xref='paper', yref='paper', x=0.0, y=1.05,
-                            xanchor='left', yanchor='bottom',
+    annotations.append(dict(xref='paper', yref='paper', x=0.5, y=1,
+                            xanchor='center', yanchor='bottom',
                             text=title,
                             font=dict(family='Arial',
                                       size=30,
@@ -375,6 +379,7 @@ class DataProcessor(object):
         else:
             raise ValueError("Unsupported aggregation type")
         return
+
 
 ###################### LOADING CLUSTERED DATA ###########################
 
