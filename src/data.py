@@ -507,7 +507,8 @@ def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radiu
                                      no_data_for_minutes=no_data_for_minutes,
                                      min_speed_kmh=min_speed_kmh)
     if stops.shape[0] == 0:
-        pass
+        return None
+    
     clusters = clustering.cluster(stops, cluster_radius_km=cluster_radius_km, min_samples=min_samples)
     clusters["duration"] = clusters["leaving_datetime"] - clusters["datetime"]
 
