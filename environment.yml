@@ -8,8 +8,9 @@ dependencies:
   - scipy
   - matplotlib
   - xarray
-  - netcdf4
   - dask
+  - netCDF4
+  - bottleneck
   - pandas=2.2.3
   - scikit-learn
   - pyyaml
