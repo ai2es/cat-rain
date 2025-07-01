@@ -6,7 +6,7 @@ save_out_path: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao_2023/"
 start_date: "2023-03-14"
 end_date: "2023-04-29"
 days_of_week: "all"
-row_group_start_end: [1,100] # empty [] will use all row groups [start, end]
+row_group_start_end: [] # empty [] will use all row groups [start, end]
 aggregation_type: "daily" # must use daily for home location calculation
 n_workers: -1 # -1 to use all available CPU workers
 

@@ -83,9 +83,7 @@ def plot_summary(summary, title):
         plot_bgcolor='white')
     
     annotations = []
-    print(y_total)
     for y_trace, x_trace, y_tot, label, color in zip(y_data, x_data, y_total, labels, colors):
-        print(title, y_tot)
         idx_max = np.argmax(y_trace)
         idx_min = np.argmin(y_trace)
         xmax, xmin = x_trace[idx_max], x_trace[idx_min]
@@ -94,12 +92,12 @@ def plot_summary(summary, title):
             ymax_label = f'{ymax:,.0f}'
             ymin_label = f'{ymin:,.0f}'
             ymean_label = f'{y_trace.mean():,.0f}'
-            y_tot_label = f'{y_tot:,.0f}'
+            y_tot_label = f'{y_tot[0]:,.0f}'
         else:
             ymax_label = f'{ymax:.3f}'
             ymin_label = f'{ymin:.3f}'
             ymean_label = f'{y_trace.mean():.3f}'
-            y_tot_label = f'{y_tot:,.3f}'
+            y_tot_label = f'{y_tot[0]:,.3f}'
 
         annotations.append(dict(xref='paper', yref='y', x=-0.005, y=y_trace[0],
                                       xanchor='right', yanchor='middle',
@@ -573,7 +571,7 @@ def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radiu
 def write_home_loc_by_row_group(data, out_path):
 
     out_file = join(out_path, 'home_loc_by_row_group.parquet')
-    data = data.set_index('uid').merge(data_class.key, left_index=True, right_index=True, how="left")
+    data = data.merge(data_class.key, left_index=True, right_index=True, how="left")
     schema = pa.Table.from_pandas(data).schema
     writer = pq.ParquetWriter(out_file, schema)
     for row_group in data_class.row_groups:
