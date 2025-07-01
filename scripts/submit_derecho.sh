@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #PBS -N cat
 #PBS -A NAML0001
-#PBS -l walltime=02:00:00
+#PBS -l walltime=00:10:00
 #PBS -j oe
 #PBS -q main
-#PBS -l select=1:ompthreads=2
+#PBS -l select=1:ompthreads=2:mem=235GB
 #PBS -m a
 #PBS -M ggantos@ucar.edu
 module load conda
