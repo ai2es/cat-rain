@@ -31,6 +31,7 @@ def plot_summary(summary, title):
     
     x_data = np.vstack([summary.columns[:-1]]*length)
     y_data = summary.loc[:, :, title][summary.columns[:-1]].values
+    y_total = summary.loc[:, :, title][summary.columns[-1:]].values
     remove_rows = []
     for i in range(y_data.shape[0]-1):
         if np.isclose(y_data[i], y_data[i+1]).all():
@@ -82,7 +83,9 @@ def plot_summary(summary, title):
         plot_bgcolor='white')
     
     annotations = []
+    print(y_total)
     for y_trace, x_trace, y_tot, label, color in zip(y_data, x_data, y_total, labels, colors):
+        print(title, y_tot)
         idx_max = np.argmax(y_trace)
         idx_min = np.argmin(y_trace)
         xmax, xmin = x_trace[idx_max], x_trace[idx_min]
@@ -91,12 +94,12 @@ def plot_summary(summary, title):
             ymax_label = f'{ymax:,.0f}'
             ymin_label = f'{ymin:,.0f}'
             ymean_label = f'{y_trace.mean():,.0f}'
-            y_tot_label = f"{y_tot:,.0f}"
+            y_tot_label = f'{y_tot:,.0f}'
         else:
             ymax_label = f'{ymax:.3f}'
             ymin_label = f'{ymin:.3f}'
             ymean_label = f'{y_trace.mean():.3f}'
-            y_tot_label = f"{y_tot:,.3f}"
+            y_tot_label = f'{y_tot:,.3f}'
 
         annotations.append(dict(xref='paper', yref='y', x=-0.005, y=y_trace[0],
                                       xanchor='right', yanchor='middle',
@@ -135,7 +138,8 @@ def create_summary(ix_funcs, ix_kwargs, conf):
                                        ["Unique Users", "Total Pings", "Pings per User"]*(len(ix_funcs)//3)],
                                       names=("Filter", "Filter Arguments", "Metric"))
     date_range = pd.date_range(start=conf["start_date"], end=conf["end_date"], freq='d')
-    summary = pd.DataFrame(data=0.0, index=index, columns=[dt.date() for dt in date_range])
+    columns = [dt.date() for dt in date_range]
+    summary = pd.DataFrame(data=0.0, index=index, columns=columns)
     return summary
 
 def data_monitor(tdf, filter, args, summary):
@@ -158,7 +162,7 @@ def save_summary(summary):
 
 ###################### PARALLEL PROCESSING ###########################
 
-def run_parallel(row_group, filters, individual_measures, collective_measures, home_location, summary):
+def run_parallel(row_group, filters, individual_measures, collective_measures, home_locations, summary):
     """ Run filtering and measure calculations for a specific row group on a specific CPU worker.
     Args:
         row_group (int): The row group to run calculations on.
@@ -169,7 +173,7 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
         List of pandas DataFrames with merged metrics on filtered data.
     """
     tdfs = get_row_group_trajectories(row_group)
-    home = get_row_group_home(row_group).rename(columns={'lng':'home_lng', 'lat':'home_lat'})
+    home = get_row_group_home(row_group)
     processed_tdfs = []
 
     if min_pings_per_date_filter in [f.func for f in filters]:
@@ -231,12 +235,12 @@ def function_pipe(conf):
             filter_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
             ix_funcs += [f]*3
             ix_kwargs += [str(kwargs)]*3
-        elif f in conf["individual_measures"]:
-            kwargs = conf["individual_measures"][f]
-            ind_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
         elif f in conf["home_locations"]:
             kwargs = conf["home_locations"][f]
             home_location_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
+        elif f in conf["individual_measures"]:
+            kwargs = conf["individual_measures"][f]
+            ind_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
         elif f in conf["collective_measures"]:
             kwargs = conf["collective_measures"][f]
             col_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
@@ -244,7 +248,7 @@ def function_pipe(conf):
             raise NameError("Function not found.")
         summary = create_summary(ix_funcs, ix_kwargs, conf)
 
-    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "collective_measures": col_measure_funcs, "home_location": home_location_funcs, "summary": summary}
+    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "collective_measures": col_measure_funcs, "home_locations": home_location_funcs, "summary": summary}
 
 
 def ensure_list(obj):
@@ -454,20 +458,6 @@ def horizontal_accuracy_and_speed_filter(tdf, max_horizontal_accuracy=800, max_s
 
 ##############  UTILS  #################################################
 
-def calc_metrics(tdf_group, stats, metric_cols, group_cols):
-
-    group, data = tdf_group
-    metric_data = data[metric_cols]
-    stat_funcs = [grouped_stats[s] for s in stats]
-    stat_data = metric_data.agg(stat_funcs).reset_index().rename(columns={'index': 'metric'})
-    for i, g in enumerate(group_cols):
-        stat_data[g] = group[i]
-    index = group_cols + ['metric']
-    stat_data.set_index(index, inplace=True)
-
-    return stat_data
-
-
 def add_date(tdf, date):
 
     tdf['date'] = date
@@ -476,7 +466,11 @@ def add_date(tdf, date):
 
 def add_zipcode(tdf, **kwargs):
 
-    points = [Point(lon, lat) for lon, lat in zip(tdf["lng"], tdf["lat"])] ### code to create list of Points to query
+    if constants.LATITUDE in tdf.columns:
+        points = [Point(lon, lat) for lon, lat in zip(tdf["lng"], tdf["lat"])] ### code to create list of Points to query
+    else:
+        points = [Point(lon, lat) for lon, lat in zip(tdf["lng_home"], tdf["lat_home"])] ### code to create list of Points to query
+    
     indices = data_class.lookup_tree.query_nearest(points, **kwargs)[1]
     tdf['zipcode'] = data_class.zip_codes[indices]
     return tdf
@@ -484,15 +478,65 @@ def add_zipcode(tdf, **kwargs):
 
 ##############  HOME LOCATION  #################################################
 
-def calc_home_location(row_group, **kwargs):
-
+def run_parallel_home_location(row_group, filters, home_locations, summary, **kwargs):
+    """ Run filtering and measure calculations for a specific row group on a specific CPU worker.
+    Args:
+        row_group (int): The row group to run calculations on.
+        filters (list): A list of filters (partial functions with kwargs) to apply to each row group.
+        home_locations (list): Home location calculation to apply to each row group.
+    Returns:
+        List of pandas DataFrames with home location on filtered data.
+    """
     tdfs = get_row_group_trajectories(row_group)
-    f = available_funcs['home_location']
-    home_locations = [f(tdf, **kwargs) for tdf in tdfs]
-    tdf = reduce(lambda left, right: pd.merge(left, right, on='uid'), home_locations)
-    tdf_w_geo = add_zipcode(tdf, all_matches=False)
 
-    return tdf_w_geo
+    # filter via methods defined in config
+    filtered_tdfs = []
+
+    if min_pings_per_date_filter in [f.func for f in filters]:
+        filter = filters[[f.func for f in filters].index(min_pings_per_date_filter)]
+        uids = []
+        for tdf in tdfs:
+            uids.append(filter(tdf))
+        uids = [u for u in uids if u != []]
+        uids_int = list(set.intersection(*map(set, uids)))
+        if len(uids_int) == 0:
+            return None
+    
+    for i, tdf in enumerate(tdfs):
+        summary = data_monitor(tdf, "None", "None", summary)
+        
+        if len(filters) > 0:
+            for j,filter in enumerate(filters):
+                if min_pings_per_date_filter in [filter.func]:
+                    tdf = tdf[tdf[constants.UID].isin(uids_int)]
+                elif tdf.shape[0] != 0:
+                    tdf = filter(tdf)
+                if tdf.shape[0] != 0:
+                    filter_name = summary.index.get_level_values(0)[j*3+3]
+                    filter_args = summary.index.get_level_values(1)[j*3+3]
+                    summary = data_monitor(tdf, filter_name, filter_args, summary)
+        if tdf.shape[0] == 0:
+            continue
+        filtered_tdfs.append(tdf)
+
+    if len(filtered_tdfs) != 0:
+        filtered_tdf = pd.concat(filtered_tdfs) # create "full" aggregation type for home location calculation
+
+    # calculate home locations via chosen method/s
+    home_location_tdfs = []
+    
+    if len(home_locations) > 0:
+        for home_loc in home_locations:
+            home_location_tdfs.append(home_loc(filtered_tdf))
+    
+    if len(home_location_tdfs) != 0:
+        merged_data = pd.concat(home_location_tdfs)
+        merged_data = add_zipcode(merged_data, all_matches=False)
+        return merged_data, summary
+
+
+def home_location_skm(tdf, **kwargs):
+    return individual.home_location(tdf).rename(columns={"lat": "lat_home_skm", "lng": "lng_home_skm"})
 
 
 def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radius_km,
@@ -515,11 +559,11 @@ def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radiu
     _tdf1 = clusters.groupby(["uid", "cluster"])["duration"].sum()
     _tdf2 = clusters.groupby(["uid", "cluster"])[["lat", "lng"]].mean()
     _tdfhw = pd.concat((_tdf1.to_frame(), _tdf2), axis=1, join="inner")
-    _tdfhw = _tdfhw.sort_values(by = ['uid', 'duration'], ascending = [False, False])
+    _tdfhw = _tdfhw.sort_values(by=['uid', 'duration'], ascending=[False, False])
     _tdfhw = _tdfhw.groupby("uid").head(2)
 
     home = _tdfhw.groupby("uid").head(1).droplevel(1)
-    home = home.rename(columns={"duration": "duration_home"})
+    home = home.rename(columns={"lat": "lat_home", "lng": "lng_home", "duration": "duration_home"})
     work = _tdfhw.groupby("uid").tail(1).droplevel(1)
     work = work.rename(columns={"lat": "lat_work", "lng": "lng_work", "duration": "duration_work"})
     
@@ -570,7 +614,7 @@ available_funcs = {"mobility_filter": filtering.filter,
                    "min_pings_per_date_filter": min_pings_per_date_filter,
                    "horizontal_accuracy_and_speed_filter": horizontal_accuracy_and_speed_filter,
                    "compress": compression.compress,
-                   "home_location_skm": individual.home_location,
+                   "home_location_skm": home_location_skm,
                    "home_location_tao": home_location_tao,
                    "number_of_visits": individual.number_of_visits,
                    "distance_straight_line": individual.distance_straight_line,
