@@ -5,7 +5,8 @@ import time
 from datetime import datetime
 import argparse
 import yaml
-from src.data import data_class, run_parallel, function_pipe, func_w_kwargs, calc_metrics
+from functools import reduce
+from src.data import data_class, run_parallel, function_pipe, func_w_kwargs, calc_metrics, save_summary
 import pandas as pd
 from os.path import join
 import os
@@ -18,6 +19,8 @@ if __name__ == "__main__":
     with open(args.config) as config_file:
         config = yaml.safe_load(config_file)
     os.makedirs(config["save_out_path"], exist_ok=True)
+    with open(join(config["save_out_path"], "process_conf.yaml"), 'w') as outfile:
+        yaml.dump(config, outfile, default_flow_style=False)
     date_str = datetime.today().strftime("%Y%m%d")
     data_class.set_attrs(config) # set class attributes for file list, key_file, and metadata
     n_processors = config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count() ## try / 2
@@ -31,9 +34,10 @@ if __name__ == "__main__":
         results = result.get()
     print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete parallel computation.")
     s = time.time()
-    print(type(results))
-    combined_data = pd.concat(results)
-    print(combined_data.shape)
+    results = [r for r in results if r is not None]
+    combined_data = pd.concat([r[0] for r in results])
+    summary = reduce(lambda x, y: x.add(y), [r[1] for r in results])
+    save_summary(summary)
     if not config['grouped_analysis']["use"]:
         data_class.save_data_out(combined_data)
     else:

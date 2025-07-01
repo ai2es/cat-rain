@@ -1,8 +1,3 @@
-zips_counties:
-  - *zips_LA
-  - *zips_SB
-  - *zips_VE
-
 zips_LA:
 - 90011
 - 90650
