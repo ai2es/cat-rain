@@ -97,18 +97,18 @@ individual_measures:
 
 ##################### COLLECTIVE METRICS ###############
 collective_measures:
- mean_square_displacement:
-   days: 0
-   hours: 1
-   minutes: 0
-   show_progress: False
+  mean_square_displacement:
+    days: 0
+    hours: 1
+    minutes: 0
+    show_progress: False
 
- random_location_entropy:
-   show_progress: False
+  random_location_entropy:
+    show_progress: False
 
- uncorrelated_location_entropy:
-   normalize: False
-   show_progress: False
+  uncorrelated_location_entropy:
+    normalize: False
+    show_progress: False
 
 
 
