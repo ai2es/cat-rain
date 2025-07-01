@@ -8,9 +8,7 @@ import pandas as pd
 import multiprocessing
 from functools import reduce
 from multiprocessing import Pool
-
-sys.path.insert(0, '..')
-from src.data import data_class, function_pipe, func_w_kwargs, run_parallel_home_location, func_w_kwargs, save_summary, write_home_loc_by_row_group
+from src.catrain.data import data_class, function_pipe, func_w_kwargs, run_parallel_home_location, func_w_kwargs, save_summary, write_home_loc_by_row_group
 
 if __name__ == "__main__":
 

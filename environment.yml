@@ -30,8 +30,10 @@ dependencies:
   - zarr
   - statsmodels
   - plotly
+  - pygrib
   # - fiona
   # - pyproj urllib3 chardet markupsafe
   - pip:
+    - s3fs
     - git+https://github.com/scikit-mobility/scikit-mobility.git
     - .

@@ -6,7 +6,7 @@ from datetime import datetime
 import argparse
 import yaml
 from functools import reduce
-from src.data import data_class, run_parallel, function_pipe, func_w_kwargs, calc_metrics, save_summary
+from src.catrain.data import data_class, run_parallel, function_pipe, func_w_kwargs, calc_metrics, save_summary
 import pandas as pd
 from os.path import join
 import os
