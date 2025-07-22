@@ -1,0 +1,8 @@
+key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
+home_loc_file: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao_filtered_2024/home_loc_by_row_group.parquet"
+mrms_file_root: "/glade/campaign/cisl/aiml/cat_flood/mrms/"
+variable: "MultiSensor_QPE_01H_Pass2_00.00"
+s_date_str: "2024-03-29T12:00"
+e_date_str: "2024-04-01T12:00"
+n_workers: -1
+save_out_path: "/glade/campaign/cisl/aiml/cat_flood/mrms_data/2024/"

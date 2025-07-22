@@ -31,7 +31,7 @@ if __name__ == "__main__":
     s = time.time()
     results = [r for r in results if r is not None]
     combined_data = pd.concat([r[0] for r in results])
-    summary = reduce(lambda x, y: x.add(y), [r[1] for r in results])
-    save_summary(summary)
     write_home_loc_by_row_group(combined_data, config['save_out_path'])
     print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete home location write.")
+    summary = reduce(lambda x, y: x.add(y), [r[1] for r in results])
+    save_summary(summary)
