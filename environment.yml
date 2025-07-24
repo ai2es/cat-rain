@@ -21,6 +21,7 @@ dependencies:
   - pyproj
   - jupyter
   - jupyterlab
+  - anywidget
   - cartopy
   - tqdm
   - sphinx
@@ -36,5 +37,6 @@ dependencies:
   # - pyproj urllib3 chardet markupsafe
   - pip:
     - s3fs
+    - plotly[express]
     - git+https://github.com/scikit-mobility/scikit-mobility.git
     - .
