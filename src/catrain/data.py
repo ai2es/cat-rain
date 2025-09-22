@@ -36,7 +36,7 @@ def plot_summary(summary, title):
     for i in range(y_data.shape[0]-1):
         if np.isclose(y_data[i], y_data[i+1]).all():
             remove_rows.append(i+1)
-    for idx in remove_rows:
+    for idx in remove_rows[::-1]:
         y_data = np.delete(y_data, idx, axis=0)
         labels[idx-1] = labels[idx-1]+" & "+labels[idx]
         labels.remove(labels[idx])

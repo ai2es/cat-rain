@@ -51,13 +51,13 @@ def add_mrms_features(row_group, home_loc_df, mrms_ds, variable):
     mrms_idx = mrms_ds.isel(lon=lon_idx_da).isel(lat=lat_idx_da)[variable].values
     mrms_idx = np.swapaxes(mrms_idx, 0, 2)
     mrms_idx = mrms_idx[np.arange(0, mrms_idx.shape[0]), np.arange(0, mrms_idx.shape[1]), :]
-    precip = pd.Series(mrms_idx.tolist(), name="precip", index=df_sub.index)
-    precip_cs = pd.Series(np.cumsum(mrms_idx, axis=1).tolist(), name="precip_cumsum", index=df_sub.index)
-    df_sub = df_sub.merge(precip, left_index=True, right_index=True)
-    df_sub = df_sub.merge(precip_cs, left_index=True, right_index=True)
-    df_sub = df_sub.assign(precip_max=lambda x: np.max(x.precip[0]),
-                           precip_mean=lambda x: np.mean(x.precip[0]),
-                           precip_sum=lambda x: np.sum(x.precip[0]))
+    var_ts = pd.Series(mrms_idx.tolist(), name="mrms_ts", index=df_sub.index)
+    var_ts_cs = pd.Series(np.cumsum(mrms_idx, axis=1).tolist(), name="mrms_ts_cumsum", index=df_sub.index)
+    df_sub = df_sub.merge(var_ts, left_index=True, right_index=True)
+    df_sub = df_sub.merge(var_ts_cs, left_index=True, right_index=True)
+    df_sub = df_sub.assign(mrms_max=lambda x: np.max(x.mrms_ts[0]),
+                           mrms_mean=lambda x: np.mean(x.mrms_ts[0]),
+                           mrms_sum=lambda x: np.sum(x.mrms_ts[0]))
     return df_sub
 
 
@@ -69,7 +69,8 @@ if __name__ == "__main__":
     with open(args.config) as config_file:
         config = yaml.safe_load(config_file)
     os.makedirs(config["save_out_path"], exist_ok=True)
-    with open(join(config["save_out_path"], "process_conf.yaml"), 'w') as outfile:
+    date_str = datetime.today().strftime("%Y%m%d")
+    with open(join(config["save_out_path"], f"process_conf_{config['variable']}_{config['s_date_str']}_{config['e_date_str']}_{date_str}.yaml"), 'w') as outfile:
         yaml.dump(config, outfile, default_flow_style=False)
 
     home_loc_df = pd.read_parquet(config["home_loc_file"], engine='pyarrow')
@@ -90,7 +91,6 @@ if __name__ == "__main__":
 
     s = time.time()
     combined_data = pd.concat(results)
-    date_str = datetime.today().strftime("%Y%m%d")
-    file_path = f"veraset_statistics_mrms_{date_str}.parquet"
+    file_path = f"veraset_users_mrms_{config['variable']}_{config['s_date_str']}_{config['e_date_str']}_{date_str}.parquet"
     combined_data.to_parquet(join(config['save_out_path'], file_path))
     print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete save.")

@@ -1,14 +1,16 @@
 # base_data_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023/chunked_data/"
-base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
+base_data_path: "/glade/derecho/scratch/cbecker/cat_daily_2024/2024/chunked_data/"
 data_prefix: "veraset"
 # key_file: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023/chunked_data/id_row_group_key.parquet"
-key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
+key_file: "/glade/derecho/scratch/cbecker/cat_daily_2024/2024/chunked_data/id_row_group_key.parquet"
 geo_file: "/glade/work/cbecker/california_zip.geojson"
 save_out_path: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao_filtered_2024/"
 start_date: "2024-03-15"
+# start_date: "2023-03-15"
 end_date: "2024-04-29"
+# end_date: "2023-04-29"
 days_of_week: "all"
-row_group_start_end: [1,10] # empty [] will use all row groups [start, end]
+row_group_start_end: [] # empty [] will use all row groups [start, end]
 aggregation_type: "daily" # MUST use daily for home location calculation
 n_workers: -1 # -1 to use all available CPU workers
 
@@ -33,7 +35,7 @@ home_locations:
 filters:
   min_pings_per_date_filter:
     start_date: "2024-03-15"
-    end_date: "2024-04-25"
+    end_date: "2024-04-29"
     min_pings: 1
 
   horizontal_accuracy_and_speed_filter:
