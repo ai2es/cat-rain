@@ -1,10 +1,14 @@
-# base_data_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023/chunked_data/"
-base_data_path: "/glade/derecho/scratch/cbecker/cat_daily_2024/2024/chunked_data/"
+## TODO: Charlie - please verify that the base_data_paths point to the latest and best chunked_data for each year. Should be correct but want to make sure. Maybe combine 2023 and 2024 somehow for the below files.
+
 data_prefix: "veraset"
-# key_file: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023/chunked_data/id_row_group_key.parquet"
+base_data_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023/chunked_data/"
+base_data_path: "/glade/derecho/scratch/cbecker/cat_daily_2024/2024/chunked_data/"
+key_file: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023/chunked_data/id_row_group_key.parquet"
 key_file: "/glade/derecho/scratch/cbecker/cat_daily_2024/2024/chunked_data/id_row_group_key.parquet"
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao_filtered_2024/"
+save_out_path: "/glade/campaign/cisl/aiml/cat_flood/mrms/home_locations/"
+
+## TODO: modify dates below to take into account all data for both years
 start_date: "2024-03-15"
 # start_date: "2023-03-15"
 end_date: "2024-04-29"
@@ -33,6 +37,7 @@ home_locations:
 
 ########### FILTERING ##########
 filters:
+  ## TODO: can either eliminate this filter from the list or modify the dates if we want to require one ping per date for the AR period.
   min_pings_per_date_filter:
     start_date: "2024-03-15"
     end_date: "2024-04-29"

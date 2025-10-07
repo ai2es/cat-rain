@@ -39,7 +39,7 @@ def load_mrms_file(datetime, variable, grib_table, region="CONUS"):
 
 def save_mrms_data(s_date_str, e_date_str, variable, grib_table_url):
     grib_table = pd.read_csv(grib_table_url)
-    dates = pd.date_range(s_date_str, e_date_str, freq="1h")
+    dates = pd.date_range(s_date_str, e_date_str, freq="1d")
 
     time_steps = []
     for date in tqdm(dates):
@@ -54,10 +54,10 @@ def save_mrms_data(s_date_str, e_date_str, variable, grib_table_url):
         f"/glade/campaign/cisl/aiml/cat_flood/mrms/raw/{variable}_{s_date_str.replace(' ', 'T')}_{e_date_str.replace(' ', 'T')}.nc"
     )
 
-s_date_str = "2024-03-15 00:00"
-e_date_str = "2024-04-29 00:00"
-variable = "MultiSensor_QPE_01H_Pass2_00.00"
-# variable = "FLASH_HP_MAXUNITSTREAMFLOW_00.00"
+s_date_str = "2023-03-15 00:00"
+e_date_str = "2023-04-29 00:00"
+# variable = "MultiSensor_QPE_01H_Pass2_00.00"
+variable = "FLASH_HP_MAXUNITSTREAMFLOW_00.00"
 grib_table_url = "https://raw.githubusercontent.com/NOAA-National-Severe-Storms-Laboratory/mrms-support/refs/heads/main/GRIB2_TABLES/UserTable_MRMS_v12.2.csv"
 
 save_mrms_data(s_date_str, e_date_str, variable, grib_table_url)

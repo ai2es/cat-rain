@@ -6,31 +6,19 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 import xarray as xr
-import pyarrow.parquet as pq
-from tqdm import tqdm
+# from tqdm import tqdm
 from pyproj import Proj
 from os.path import join
 from functools import partial
 from datetime import datetime
 from multiprocessing import Pool
+from itertools import product
 from scipy.spatial import cKDTree
 import warnings
 warnings.filterwarnings('ignore')
 
 
-def query_mrms(row, mrms_ds, variable):
-    return mrms_ds.isel(lon=row.lng_idx, lat=row.lat_idx)[variable].values
-
-def add_mrms_features(row_group, home_loc_df, mrms_ds, variable):
-    """
-    Find indices of nearest lon/lat pair on a grid. Supports rectilinear and curilinear grids.
-    Args:
-        home_loc_df (pd.DataFrame): Pandas dataframe containing lat and lon columns
-        lon_grid_array (np.array): Longitude values of coarse grid you are matching against
-        lat_grid_array (np.array): Latitude values of coarse grid you are matching against
-    Returns (list):
-        List of i, j (Lon/Lat) indices for coarse grid.
-    """
+def create_tree(mrms_ds):
     # define projection
     proj = Proj(proj="lcc", R=6371229, lat_0=25, lon_0=265, lat_1=25, lat_2=25)
     
@@ -39,25 +27,38 @@ def add_mrms_features(row_group, home_loc_df, mrms_ds, variable):
     mrms_lat_grid = np.tile(mrms_ds['lat'].values, (mrms_ds['lon'].values.shape[0], 1))
     proj_mrms_lon_grid, proj_mrms_lat_grid = np.array(proj(mrms_lon_grid, mrms_lat_grid))
     tree = cKDTree(np.c_[proj_mrms_lon_grid.ravel(), proj_mrms_lat_grid.ravel()])
-    
-    # query KDTree for row_group subset of dataframe
-    df_sub = home_loc_df[home_loc_df.row_group == row_group]
-    _, points = tree.query(np.column_stack(proj(df_sub['lng_home'], df_sub['lat_home'])))
-    idx = np.column_stack(np.unravel_index(points, mrms_lon_grid.shape))
-    
+    return tree, proj, mrms_lon_grid.shape
+
+def get_mrms_var(df_sub, idx, mrms_ds, variable, variable_name):
+
     # grab MRMS data using calculated index
     lon_idx_da = xr.DataArray(idx[:, 0], dims="lon")
     lat_idx_da = xr.DataArray(idx[:, 1], dims="lat")
     mrms_idx = mrms_ds.isel(lon=lon_idx_da).isel(lat=lat_idx_da)[variable].values
     mrms_idx = np.swapaxes(mrms_idx, 0, 2)
     mrms_idx = mrms_idx[np.arange(0, mrms_idx.shape[0]), np.arange(0, mrms_idx.shape[1]), :]
-    var_ts = pd.Series(mrms_idx.tolist(), name="mrms_ts", index=df_sub.index)
-    var_ts_cs = pd.Series(np.cumsum(mrms_idx, axis=1).tolist(), name="mrms_ts_cumsum", index=df_sub.index)
-    df_sub = df_sub.merge(var_ts, left_index=True, right_index=True)
-    df_sub = df_sub.merge(var_ts_cs, left_index=True, right_index=True)
-    df_sub = df_sub.assign(mrms_max=lambda x: np.max(x.mrms_ts[0]),
-                           mrms_mean=lambda x: np.mean(x.mrms_ts[0]),
-                           mrms_sum=lambda x: np.sum(x.mrms_ts[0]))
+    series = pd.Series(mrms_idx.tolist(), name=variable_name, index=df_sub.index)
+    return series
+
+def cycle_through_mrms_variables(row_group, home_loc_df, variables, date_strs, variable_aggregates):
+
+    mrms_fn = f"/glade/campaign/cisl/aiml/cat_flood/mrms/raw/{variables[0]}_{date_strs[0]}_daily_{variable_aggregates[0]}.nc"
+    mrms_ds = xr.open_dataset(mrms_fn, engine="netcdf4")
+    tree, proj, mrms_lon_grid_shape = create_tree(mrms_ds)
+    
+    df_sub = home_loc_df[home_loc_df.row_group == row_group]
+    _, points = tree.query(np.column_stack(proj(df_sub['lng_home'], df_sub['lat_home'])))
+    idx = np.column_stack(np.unravel_index(points, mrms_lon_grid_shape))
+
+    for variable, date_str, variable_aggregate in product(variables, date_strs, variable_aggregates):
+        mrms_fn = f"/glade/campaign/cisl/aiml/cat_flood/mrms/raw/{variable}_{date_str}_daily_{variable_aggregate}.nc"
+        mrms_ds = xr.open_dataset(mrms_fn, engine="netcdf4")
+        variable_name = f"streamflow_{variable_aggregate}" if "STREAMFLOW" in variable else f"precip_{variable_aggregate}"
+        series = get_mrms_var(df_sub, idx, mrms_ds, variable, variable_name)
+        if variable_name in df_sub.columns:
+            df_sub[variable_name] = df_sub[variable_name] + series
+        else:
+            df_sub = df_sub.merge(series, left_index=True, right_index=True)
     return df_sub
 
 
@@ -69,20 +70,23 @@ if __name__ == "__main__":
     with open(args.config) as config_file:
         config = yaml.safe_load(config_file)
     os.makedirs(config["save_out_path"], exist_ok=True)
-    date_str = datetime.today().strftime("%Y%m%d")
-    with open(join(config["save_out_path"], f"process_conf_{config['variable']}_{config['s_date_str']}_{config['e_date_str']}_{date_str}.yaml"), 'w') as outfile:
+    date_str = datetime.today().strftime("%Y%m%d_%H%M")
+    with open(join(config["save_out_path"], f"process_conf_{date_str}.yaml"), 'w') as outfile:
         yaml.dump(config, outfile, default_flow_style=False)
 
-    home_loc_df = pd.read_parquet(config["home_loc_file"], engine='pyarrow')
-    variable = config['variable']
-    mrms_file = f"{config['mrms_file_root']}{variable}_{config['s_date_str']}_{config['e_date_str']}.nc"
-    mrms_ds = xr.open_dataset(mrms_file, engine="netcdf4")
-
+    home_loc_df_23 = pd.read_parquet(config["home_loc_file_23"], engine='pyarrow')
+    home_loc_df = pd.read_parquet(config["home_loc_file_24"], engine='pyarrow')
+    home_loc_df = home_loc_df[home_loc_df.index.isin(home_loc_df_23.index)]
     row_groups = home_loc_df.row_group.unique()
+    
     n_processors = config["n_workers"] if config["n_workers"] > 0 else multiprocessing.cpu_count()
-
+    f = partial(cycle_through_mrms_variables,
+                home_loc_df=home_loc_df,
+                variables=variables,
+                date_strs=date_strs,
+                variable_aggregates=variable_aggregates)
+    
     s = time.time()
-    f = partial(add_mrms_features, home_loc_df=home_loc_df, mrms_ds=mrms_ds, variable=variable)
     print('Beginning data processing...')
     with Pool(processes=n_processors) as pool:
         result = pool.map_async(f, row_groups)
@@ -91,6 +95,6 @@ if __name__ == "__main__":
 
     s = time.time()
     combined_data = pd.concat(results)
-    file_path = f"veraset_users_mrms_{config['variable']}_{config['s_date_str']}_{config['e_date_str']}_{date_str}.parquet"
+    file_path = f"veraset_users_mrms_{date_str}.parquet"
     combined_data.to_parquet(join(config['save_out_path'], file_path))
     print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete save.")
