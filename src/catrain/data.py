@@ -3,6 +3,8 @@ import numpy as np
 import pyarrow.parquet as pq
 import pyarrow as pa
 import os
+import time
+import pickle
 import geopy.distance
 from skmob.utils import utils, constants
 from skmob.core.trajectorydataframe import TrajDataFrame
@@ -36,7 +38,7 @@ def plot_summary(summary, title):
     for i in range(y_data.shape[0]-1):
         if np.isclose(y_data[i], y_data[i+1]).all():
             remove_rows.append(i+1)
-    for idx in remove_rows:
+    for idx in remove_rows[::-1]:
         y_data = np.delete(y_data, idx, axis=0)
         labels[idx-1] = labels[idx-1]+" & "+labels[idx]
         labels.remove(labels[idx])
@@ -160,7 +162,7 @@ def save_summary(summary):
 
 ###################### PARALLEL PROCESSING ###########################
 
-def run_parallel(row_group, filters, individual_measures, collective_measures, home_locations, summary):
+def run_parallel(row_group, uids_final, filters, individual_measures, collective_measures, home_locations, summary):
     """ Run filtering and measure calculations for a specific row group on a specific CPU worker.
     Args:
         row_group (int): The row group to run calculations on.
@@ -170,29 +172,38 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
     Returns:
         List of pandas DataFrames with merged metrics on filtered data.
     """
-    tdfs = get_row_group_trajectories(row_group)
     home = get_row_group_home(row_group)
-    processed_tdfs = []
+    tdfs = get_row_group_trajectories(row_group)
+    tdfs = [tdf[tdf.uid.isin(home.uid)] for tdf in tdfs]
+    if uids_final is not None:
+        tdfs = [tdf[tdf.uid.isin(uids_final)] for tdf in tdfs]
+    tdf_shapes = [tdf.shape[0] for tdf in tdfs]
+    if np.sum(tdf_shapes) == 0:
+        return None
 
+    processed_tdfs = []
     if min_pings_per_date_filter in [f.func for f in filters]:
-        filter = filters[[f.func for f in filters].index(min_pings_per_date_filter)]
+        filter_ = filters[[f.func for f in filters].index(min_pings_per_date_filter)]
         uids = []
         for tdf in tdfs:
-            uids.append(filter(tdf))
+            uids.append(filter_(tdf))
         uids = [u for u in uids if u != []]
         uids_int = list(set.intersection(*map(set, uids)))
-    if len(uids_int) == 0:
-        return None
+    if min_pings_per_date_filter in [f.func for f in filters]:
+        if len(uids_int) == 0:
+            return None
     
     for i, tdf in enumerate(tdfs):
+        if tdf.shape[0] == 0:
+            continue
         summary = data_monitor(tdf, "None", "None", summary)
         
         if len(filters) > 0:
-            for j,filter in enumerate(filters):
-                if min_pings_per_date_filter in [filter.func]:
+            for j,filter_ in enumerate(filters):
+                if min_pings_per_date_filter in [filter_.func]:
                     tdf = tdf[tdf[constants.UID].isin(uids_int)]
                 elif tdf.shape[0] != 0:
-                    tdf = filter(tdf)
+                    tdf = filter_(tdf)
                 if tdf.shape[0] != 0:
                     filter_name = summary.index.get_level_values(0)[j*3+3]
                     filter_args = summary.index.get_level_values(1)[j*3+3]
@@ -200,7 +211,7 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
         
         if tdf.shape[0] == 0:
             continue
-            
+
         if max_distance_from_home_static in [x.func for x in individual_measures]: ### Custom logic for function that requires home loc
             individual_measures = [x for x in individual_measures if x.func != max_distance_from_home_static]
             individual_measures.append(partial(max_distance_from_home_static, home_tdf=home))
@@ -212,13 +223,15 @@ def run_parallel(row_group, filters, individual_measures, collective_measures, h
         if data_class.aggregation_type == "full":
             date_str = data_class.dates[0].strftime("%Y-%m-%d_") + data_class.dates[-1].strftime("%Y-%m-%d")
             tdf = add_date(tdf, date_str)
+        
         else:
             tdf = add_date(tdf, data_class.dates[i])
 
         processed_tdfs.append(tdf)
-        
+
     if len(processed_tdfs) != 0:
         merged_data = pd.merge(home, pd.concat(processed_tdfs), on='uid')
+        print(f"{row_group}: {np.round(time.time() / 60, 2)}")
         return merged_data, summary
 
 
@@ -245,8 +258,13 @@ def function_pipe(conf):
         else:
             raise NameError("Function not found.")
         summary = create_summary(ix_funcs, ix_kwargs, conf)
+        if conf["uids_final"]:
+            with open(conf["uids_final"], 'rb') as file:
+                uids_final = pickle.load(file)
+        else:
+            uids_final = None
 
-    return {"filters": filter_funcs, "individual_measures": ind_measure_funcs, "collective_measures": col_measure_funcs, "home_locations": home_location_funcs, "summary": summary}
+    return {"uids_final": uids_final, "filters": filter_funcs, "individual_measures": ind_measure_funcs, "collective_measures": col_measure_funcs, "home_locations": home_location_funcs, "summary": summary}
 
 
 def ensure_list(obj):
@@ -270,7 +288,7 @@ class DataProcessor(object):
     """
     def __init__(self, base_data_path="", home_loc_file=None, key_file="", geo_file="", data_prefix="", start_date="",
                  end_date="", meta=None, home_meta=None, key_meta=None, n_rows=None, n_row_groups=None,
-                 row_group_start_end=None, aggregation_type="", save_out_path="", save_out_files="", n_workers=-1,
+                 row_group_start_end=None, uids_final=None, aggregation_type="", save_out_path="", save_out_files="", n_workers=-1,
                  days_of_week="", pipeline=None, filters=None):
 
         self.base_data_path = base_data_path
@@ -286,6 +304,7 @@ class DataProcessor(object):
         self.n_rows = n_rows
         self.n_row_groups = n_row_groups
         self.row_group_start_end = row_group_start_end
+        self.uids_final = uids_final
         self.aggregation_type = aggregation_type
         self.save_out_path = save_out_path
         self.save_out_files = save_out_files
@@ -306,15 +325,16 @@ class DataProcessor(object):
             with pq.ParquetFile(f) as pf:
                 self.meta.append(copy(pf.metadata))
         self.key_meta = pq.ParquetFile(self.key_file).metadata
-        if self.home_loc_file:
-            self.home_meta = pq.ParquetFile(self.home_loc_file).metadata
         self.n_rows = self.key_meta.num_rows
         self.n_row_groups = self.key_meta.num_row_groups
         if self.row_group_start_end:
             self.row_groups = np.arange(self.row_group_start_end[0], self.row_group_start_end[1], 1)
         else:
             self.row_groups = np.arange(self.n_row_groups)
-
+        if self.home_loc_file:
+            self.home_meta = pq.ParquetFile(self.home_loc_file).metadata
+            home_row_groups = pd.read_parquet(self.home_loc_file, engine='pyarrow')["row_group"].unique() #[:10]
+            self.row_groups = np.intersect1d(home_row_groups, self.row_groups)
         if self.aggregation_type == "full":
             fn = f"veraset_{self.start_date}_{self.end_date}.parquet"
             self.save_out_files = os.path.join(self.save_out_path, fn)
@@ -386,11 +406,11 @@ class DataProcessor(object):
 ###################### LOADING CLUSTERED DATA ###########################
 
 def get_row_group_home(row_group):
-    """ Read a specific row group across all files. """
+    """ Read a specific row group home location. """
 
     home_file = data_class.home_loc_file
-    home_meta = data_class.home_meta
-    home_location = pq.ParquetFile(home_file, metadata=home_meta).read_row_group(row_group).to_pandas().reset_index()
+    home_location = pd.read_parquet(home_file, engine='pyarrow', filters=[("row_group", "=", row_group)]).reset_index()
+    home_location = home_location.rename(columns={"lat": "lat_home", "lng": "lng_home"})
 
     return home_location
 
@@ -420,13 +440,22 @@ def get_row_group_trajectories(row_group):
 ###################### CUSTOM FILTERS ###########################
 
 def min_pings_per_date_filter(tdf, start_date="2024-03-14", end_date="2024-04-30", min_pings=1):
-    date = tdf[constants.DATETIME].iloc[0]
+    date = tdf.iloc[0][constants.DATETIME]
+    uids = []
     if (date >= pd.Timestamp(start_date, tz='US/Pacific')) & (date <= pd.Timestamp(end_date, tz='US/Pacific')):
         counts = tdf[constants.UID].value_counts()
         uids = list(counts[counts >= min_pings].index)
-    else:
-        uids = []
     return uids
+
+
+def min_pings_per_date_range_filter(tdf, start_dates=["2024-03-14"], end_dates=["2024-04-30"], min_pings=1, min_days=2):
+    date = tdf.iloc[0][constants.DATETIME]
+    uids = []
+    for start_date, end_date in zip(start_dates, end_dates):
+        if (date >= pd.Timestamp(start_date, tz='US/Pacific')) & (date <= pd.Timestamp(end_date, tz='US/Pacific')):
+            counts = tdf[constants.UID].value_counts()
+            uids = list(counts[counts >= min_pings].index)
+    return uids, min_days
 
 
 def horizontal_accuracy_and_speed_filter(tdf, max_horizontal_accuracy=800, max_speed_kmh=128.7):
@@ -474,6 +503,66 @@ def add_zipcode(tdf, **kwargs):
     return tdf
 
 
+def calc_metrics(tdf_group, stats, metric_cols, group_cols):
+
+    group, data = tdf_group
+    metric_data = data[metric_cols]
+    stat_funcs = [grouped_stats[s] for s in stats]
+    stat_data = metric_data.agg(stat_funcs).reset_index().rename(columns={'index': 'metric'})
+    for i, g in enumerate(group_cols):
+        stat_data[g] = group[i]
+    index = group_cols + ['metric']
+    stat_data.set_index(index, inplace=True)
+
+    return stat_data
+
+
+def run_parallel_uids(row_group, filters, **kwargs):
+
+    tdfs = get_row_group_trajectories(row_group)
+
+    if min_pings_per_date_filter in [f.func for f in filters]:
+        filter = filters[[f.func for f in filters].index(min_pings_per_date_filter)]
+        uids = []
+        for tdf in tdfs:
+            uids.append(filter(tdf))
+        uids = [u for u in uids if u != []]
+        if len(uids) == 0:
+            return None
+        uids_int = list(set.intersection(*map(set, uids)))
+        if len(uids_int) == 0:
+            return None
+        else:
+            return uids_int
+
+    if min_pings_per_date_range_filter in [f.func for f in filters]:
+        filter = filters[[f.func for f in filters].index(min_pings_per_date_range_filter)]
+        min_days = filter(tdfs[0])[1]
+        uids = []
+        for tdf in tdfs:
+            uids.append(filter(tdf)[0])
+        uids = [u for u in uids if u != []]
+        if len(uids) == 0:
+            return None
+        uids_combined = [u for uid in uids for u in uid]
+
+        final_uids = []
+        for uid in list(set(uids_combined)):
+            if (uids_combined.count(uid) >= min_days):
+                final_uids.append(uid)
+        if len(final_uids) == 0:
+            return None
+        else:
+            return final_uids
+
+
+def write_uids(data, out_path, identifier):
+
+    out_file = join(out_path, f'uids_{identifier}.parquet')
+    with open(out_file, 'wb') as f:
+        pickle.dump(data, f)
+    
+
 ##############  HOME LOCATION  #################################################
 
 def run_parallel_home_location(row_group, filters, home_locations, summary, **kwargs):
@@ -517,12 +606,13 @@ def run_parallel_home_location(row_group, filters, home_locations, summary, **kw
             continue
         filtered_tdfs.append(tdf)
 
-    if len(filtered_tdfs) != 0:
+    if len(filtered_tdfs) == 0:
+        return None
+    else:
         filtered_tdf = pd.concat(filtered_tdfs) # create "full" aggregation type for home location calculation
 
     # calculate home locations via chosen method/s
     home_location_tdfs = []
-    
     if len(home_locations) > 0:
         for home_loc in home_locations:
             home_location_tdfs.append(home_loc(filtered_tdf))
@@ -571,10 +661,16 @@ def home_location_tao(tdf, stop_radius_factor, minutes_for_a_stop, spatial_radiu
 def write_home_loc_by_row_group(data, out_path):
 
     out_file = join(out_path, 'home_loc_by_row_group.parquet')
-    data = data.merge(data_class.key, left_index=True, right_index=True, how="left")
+    if "uid" in data.index.names:
+        data = data.merge(data_class.key, left_index=True, right_index=True, how="left")
+    elif "uid" in data.columns:
+        data = data.set_index('uid').merge(data_class.key, left_index=True, right_index=True, how="left")
+    else:
+        raise KeyError("UID not in index or columns.")
+    
     schema = pa.Table.from_pandas(data).schema
     writer = pq.ParquetWriter(out_file, schema)
-    for row_group in data_class.row_groups:
+    for row_group in data.row_group.unique():
         row_group_data = pa.Table.from_pandas(data[data['row_group'] == row_group])
         writer.write_table(row_group_data)
     writer.close()
@@ -585,8 +681,9 @@ def write_home_loc_by_row_group(data, out_path):
 def _max_distance_from_home_static_individual(df):
 
     df_samp = df.iloc[0:1]
+    print(df_samp.columns)
     df_samp['max_distance_from_home'] = 0
-    reference = (df_samp['home_lat'].values[0], df_samp['home_lng'].values[0])
+    reference = (df_samp['lat_home'].values[0], df_samp['lng_home'].values[0])
     points = list(zip(df[constants.LATITUDE].values, df[constants.LONGITUDE].values))
     max_dist = 0
     for point in points:
@@ -598,18 +695,20 @@ def _max_distance_from_home_static_individual(df):
 
 
 def max_distance_from_home_static(tdf, home_tdf, **kwargs):
-    df_combined = tdf.merge(home_tdf, how='inner', on=constants.UID)
-    return df_combined.groupby(constants.UID).apply(_max_distance_from_home_static_individual)
+    df_combined = pd.DataFrame(tdf.merge(home_tdf, how='inner', on=constants.UID))
+    df_combined = df_combined.groupby(constants.UID).apply(_max_distance_from_home_static_individual)
 
+    return df_combined
 
 def stay_locations_count(tdf, **kwargs):
     tdf = detection.stay_locations(tdf, **kwargs)
     tdf = pd.DataFrame(tdf.groupby(constants.UID).size())
     return tdf.reset_index().rename(columns={0: "num_stops"})
-    
+
 
 available_funcs = {"mobility_filter": filtering.filter,
                    "min_pings_per_date_filter": min_pings_per_date_filter,
+                   "min_pings_per_date_range_filter": min_pings_per_date_range_filter,
                    "horizontal_accuracy_and_speed_filter": horizontal_accuracy_and_speed_filter,
                    "compress": compression.compress,
                    "home_location_skm": home_location_skm,
