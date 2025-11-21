@@ -37,10 +37,10 @@ filters:
     min_pings: 1
 
   min_pings_per_date_range_filter:
-    start_date: ["2023-03-15", "2024-03-15", "2024-04-02"]
-    end_date: ["2023-04-29", "2024-03-28", "2024-04-29"]
+    start_dates: ["2023-03-15", "2024-03-15", "2024-04-02"]
+    end_dates: ["2023-04-29", "2024-03-28", "2024-04-29"]
     min_pings: 1
-    min_days: 1
+    min_days: 31
 
   horizontal_accuracy_and_speed_filter:
     max_horizontal_accuracy: 800
