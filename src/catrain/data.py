@@ -174,9 +174,15 @@ def run_parallel(row_group, uids_final, filters, individual_measures, collective
     """
     home = get_row_group_home(row_group)
     tdfs = get_row_group_trajectories(row_group)
-    tdfs = [tdf[tdf.uid.isin(home.uid)] for tdf in tdfs]
+    if "uid" in tdfs[0].columns:
+        tdfs = [tdf[tdf.uid.isin(home.uid)] for tdf in tdfs]
+    else:
+        tdfs = [tdf[tdf.index.isin(home.uid)] for tdf in tdfs]
     if uids_final is not None:
-        tdfs = [tdf[tdf.uid.isin(uids_final)] for tdf in tdfs]
+        if "uid" in tdfs[0].columns:
+            tdfs = [tdf[tdf.uid.isin(uids_final)] for tdf in tdfs]
+        else:
+            tdfs = [tdf[tdf.index.isin(uids_final)] for tdf in tdfs]
     tdf_shapes = [tdf.shape[0] for tdf in tdfs]
     if np.sum(tdf_shapes) == 0:
         return None
@@ -258,7 +264,7 @@ def function_pipe(conf):
         else:
             raise NameError("Function not found.")
         summary = create_summary(ix_funcs, ix_kwargs, conf)
-        if conf["uids_final"]:
+        if conf["uids_final"] is not None:
             with open(conf["uids_final"], 'rb') as file:
                 uids_final = pickle.load(file)
         else:
@@ -681,7 +687,6 @@ def write_home_loc_by_row_group(data, out_path):
 def _max_distance_from_home_static_individual(df):
 
     df_samp = df.iloc[0:1]
-    print(df_samp.columns)
     df_samp['max_distance_from_home'] = 0
     reference = (df_samp['lat_home'].values[0], df_samp['lng_home'].values[0])
     points = list(zip(df[constants.LATITUDE].values, df[constants.LONGITUDE].values))
