@@ -8,8 +8,9 @@ dependencies:
   - scipy
   - matplotlib
   - xarray
-  - netcdf4
   - dask
+  - netCDF4
+  - bottleneck
   - pandas=2.2.3
   - scikit-learn
   - pyyaml
@@ -20,6 +21,7 @@ dependencies:
   - pyproj
   - jupyter
   - jupyterlab
+  - anywidget
   - cartopy
   - tqdm
   - sphinx
@@ -30,8 +32,11 @@ dependencies:
   - zarr
   - statsmodels
   - plotly
+  - pygrib
   # - fiona
   # - pyproj urllib3 chardet markupsafe
   - pip:
+    - s3fs
+    - plotly[express]
     - git+https://github.com/scikit-mobility/scikit-mobility.git
     - .

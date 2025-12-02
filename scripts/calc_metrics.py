@@ -6,7 +6,7 @@ from datetime import datetime
 import argparse
 import yaml
 from functools import reduce
-from src.data import data_class, run_parallel, function_pipe, func_w_kwargs, calc_metrics, save_summary
+from src.catrain.data import data_class, run_parallel, function_pipe, func_w_kwargs, calc_metrics, save_summary
 import pandas as pd
 from os.path import join
 import os
@@ -37,7 +37,6 @@ if __name__ == "__main__":
     results = [r for r in results if r is not None]
     combined_data = pd.concat([r[0] for r in results])
     summary = reduce(lambda x, y: x.add(y), [r[1] for r in results])
-    save_summary(summary)
     if not config['grouped_analysis']["use"]:
         data_class.save_data_out(combined_data)
     else:
@@ -56,4 +55,5 @@ if __name__ == "__main__":
         all_data = pd.concat(group_results)
         file_path = f"{data_class.aggregation_type}_statistics_{date_str}.parquet"
         all_data.to_parquet(join(config['save_out_path'], file_path))
-        print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete group computation.")
+    print(f"{np.round((time.time() - s) / 60, 2)} minutes to complete group computation.")
+    save_summary(summary)

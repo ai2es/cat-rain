@@ -1,0 +1,65 @@
+data_prefix: "veraset"
+base_data_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/chunked_data_2023_2024/"
+key_file: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023_2024/key_file/id_row_group_key.parquet"
+home_loc_file: "/glade/work/ggantos/cat-rain/notebooks/home_loc_by_row_group_1pingAR_counties.parquet"
+geo_file: "/glade/work/cbecker/california_zip.geojson"
+save_out_path: "/glade/campaign/cisl/aiml/cat_flood/uids/sensitivity/"
+start_date: "2023-03-15"
+end_date: "2024-04-29"
+days_of_week: "all"
+row_group_start_end: [] # empty [] will use all row groups [start, end]
+uids_final: null
+aggregation_type: "daily" # MUST use daily for home location calculation
+n_workers: -1
+
+pipeline: ["min_pings_per_date_range_filter"]
+
+
+########### HOME LOCATIONS ##########
+home_locations:
+  home_location_tao:
+      stop_radius_factor: 0.5
+      minutes_for_a_stop: 10.0
+      spatial_radius_km: 0.2
+      leaving_time: True
+      no_data_for_minutes: 1000000000000.0
+      min_speed_kmh: null
+      cluster_radius_km: 0.1
+      min_samples: 1
+
+  home_location_skm:
+
+########### FILTERING ##########
+filters:
+  min_pings_per_date_filter:
+    start_date: "2023-03-15"
+    end_date: "2024-04-29"
+    min_pings: 1
+
+  min_pings_per_date_range_filter:
+    start_dates: ["2023-03-15", "2024-03-15", "2024-04-02"]
+    end_dates: ["2023-04-29", "2024-03-28", "2024-04-29"]
+    min_pings: 1
+    min_days: 31
+
+  horizontal_accuracy_and_speed_filter:
+    max_horizontal_accuracy: 800
+    max_speed_kmh: 128.7
+
+  mobility_filter:
+    max_speed_kmh: 200.0
+    include_loops: True
+    speed_kmh: 5.0
+    max_loop: 6
+    ratio_max: 0.25
+
+  compress:
+    spatial_radius_km: 0.2
+
+########### INDIVIDUAL MEASURES ##########
+individual_measures:
+  number_of_visits:
+  
+##################### COLLECTIVE METRICS ###############
+collective_measures:
+  mean_square_displacement:

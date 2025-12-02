@@ -1,13 +1,17 @@
-base_data_path: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/"
+base_data_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/chunked_data_2023_2024/"
 data_prefix: "veraset"
-key_file: "/glade/derecho/scratch/cbecker/CAT_daily/chunked_data/id_row_group_key.parquet"
-home_loc_file: "/glade/derecho/scratch/ggantos/CAT/home_locations_tao/home_loc_by_row_group.parquet"
+key_file: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023_2024/key_file/id_row_group_key.parquet"
+# home_loc_file: "/glade/derecho/scratch/cbecker/CAT_home_loc_20251010/home_loc_by_row_group.parquet"
+home_loc_file: "/glade/work/ggantos/cat-rain/notebooks/home_loc_by_row_group_counties_unfiltered.parquet"
+# home_loc_file: "/glade/derecho/scratch/cbecker/CAT_home_loc_20251010/home_loc_by_row_group.parquet"
 geo_file: "/glade/work/cbecker/california_zip.geojson"
-save_out_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data_update/"
-start_date: "2024-03-15"
-end_date: "2024-04-25"
+save_out_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data_20251121/"
+start_date: "2023-03-15"
+end_date: "2024-04-29"
 days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" and "all"
 row_group_start_end: [] # empty [] will use all row groups [start, end]
+uids_final: null
+# uids_final: "/glade/work/ggantos/cat-rain/notebooks/uids_final_counties.pkl"
 aggregation_type: "daily" # Supports "full" or "daily"; only applies to non_grouped_calcs
 n_workers: -1 # -1 to use all available CPU workers
 
@@ -17,8 +21,7 @@ n_workers: -1 # -1 to use all available CPU workers
 # Would result in compressing all the data with given args, then calculating the entropy and ROG
 # and merging the results. Filters apply one after another on the output of the previous filter result
 # Measures are calculated independently on the filter results (if any) and then merged together
-# pipeline: ["min_pings_per_date_filter", "mobility_filter", "number_of_visits", "distance_straight_line", "jump_lengths", "radius_of_gyration", "max_distance_from_home_static", "stay_locations_count"]
-pipeline: ["min_pings_per_date_filter", "mobility_filter"]
+pipeline: ["number_of_visits", "distance_straight_line", "jump_lengths", "radius_of_gyration", "max_distance_from_home_static", "stay_locations_count"]
 
 grouped_analysis:
   use: False # ignores "grouped" calculations if False
@@ -41,8 +44,8 @@ home_locations:
 ########### FILTERING ##########
 filters:
   min_pings_per_date_filter:
-    start_date: "2024-03-15"
-    end_date: "2024-04-25"
+    start_date: "2023-03-15"
+    end_date: "2023-04-29"
     min_pings: 1
 
   mobility_filter:
