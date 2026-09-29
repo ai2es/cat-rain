@@ -135,7 +135,7 @@ def plot_summary(summary, title):
 def create_summary(ix_funcs, ix_kwargs, conf):
     index = pd.MultiIndex.from_arrays([ix_funcs,
                                        ix_kwargs,
-                                       ["Unique Users", "Total Pings", "Pings per User"]*(len(ix_funcs)//3)],
+                                       ["Unique Users", "Total Pings", "Pings per User", "Apple Devices", "Other Devices"]*(len(ix_funcs)//5)],
                                       names=("Filter", "Filter Arguments", "Metric"))
     date_range = pd.date_range(start=conf["start_date"], end=conf["end_date"], freq='d')
     columns = [dt.date() for dt in date_range]
@@ -146,13 +146,17 @@ def data_monitor(tdf, filter, args, summary):
     date = tdf[constants.DATETIME].dt.date.iloc[0]
     pings = tdf.uid.size
     nusers = tdf.uid.unique().size
+    napple = tdf.drop_duplicates(subset=['uid', 'id_type']).id_type.value_counts()['aaid']
+    notheros = tdf.drop_duplicates(subset=['uid', 'id_type']).id_type.value_counts()['idfa']
     summary.loc[(filter, args, "Total Pings"), date] += pings
     summary.loc[(filter, args, "Unique Users"), date] += nusers
+    summary.loc[(filter, args, "Apple Devices"), date] += nusers
+    summary.loc[(filter, args, "Other Devices"), date] += nusers
     return summary
 
 def save_summary(summary):
     summary.loc[:, "Total"] = summary.sum(axis=1)
-    for i in range(0, summary.shape[0], 3):
+    for i in range(0, summary.shape[0], 5):
         summary.iloc[i+2] = summary.iloc[i] / summary.iloc[i+1]
     summary.to_parquet(os.path.join(data_class.save_out_path, "summary.parquet"))
     for title in ["Unique Users", "Pings per User"]:
@@ -194,8 +198,8 @@ def run_parallel(row_group, uids_final, filters, individual_measures, collective
         for tdf in tdfs:
             uids.append(filter_(tdf))
         uids = [u for u in uids if u != []]
-        uids_int = list(set.intersection(*map(set, uids)))
-    if min_pings_per_date_filter in [f.func for f in filters]:
+        if len(uids) > 0:
+            uids_int = list(set.intersection(*map(set, uids)))
         if len(uids_int) == 0:
             return None
     
@@ -245,16 +249,18 @@ def function_pipe(conf):
     """ Create partials (functions with predefined kwargs) for each filter and measurement. """
 
     filter_funcs, ind_measure_funcs, home_location_funcs, col_measure_funcs = [], [], [], []
-    ix_funcs, ix_kwargs = ["None"]*3, ["None"]*3
+    ix_funcs, ix_kwargs = ["None"]*5, ["None"]*5
     for f in conf['pipeline']:
         if f in conf["filters"]:
             kwargs = conf["filters"][f]
             filter_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
-            ix_funcs += [f]*3
-            ix_kwargs += [str(kwargs)]*3
+            ix_funcs += [f]*5
+            ix_kwargs += [str(kwargs)]*5
         elif f in conf["home_locations"]:
             kwargs = conf["home_locations"][f]
             home_location_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
+            ix_funcs += [f]*5
+            ix_kwargs += [str(kwargs)]*5
         elif f in conf["individual_measures"]:
             kwargs = conf["individual_measures"][f]
             ind_measure_funcs.append(func_w_kwargs(available_funcs[f], kwargs))
@@ -535,7 +541,8 @@ def run_parallel_uids(row_group, filters, **kwargs):
         uids = [u for u in uids if u != []]
         if len(uids) == 0:
             return None
-        uids_int = list(set.intersection(*map(set, uids)))
+        else:
+            uids_int = list(set.intersection(*map(set, uids)))
         if len(uids_int) == 0:
             return None
         else:
@@ -591,11 +598,13 @@ def run_parallel_home_location(row_group, filters, home_locations, summary, **kw
         for tdf in tdfs:
             uids.append(filter(tdf))
         uids = [u for u in uids if u != []]
-        uids_int = list(set.intersection(*map(set, uids)))
-        if len(uids_int) == 0:
+        if len(uids) > 0:
+            uids_int = list(set.intersection(*map(set, uids)))
+        else:
             return None
     
     for i, tdf in enumerate(tdfs):
+        print("START", tdf.shape)
         summary = data_monitor(tdf, "None", "None", summary)
         
         if len(filters) > 0:
@@ -604,9 +613,10 @@ def run_parallel_home_location(row_group, filters, home_locations, summary, **kw
                     tdf = tdf[tdf[constants.UID].isin(uids_int)]
                 elif tdf.shape[0] != 0:
                     tdf = filter(tdf)
+                    print("Filtered", tdf.shape)
                 if tdf.shape[0] != 0:
-                    filter_name = summary.index.get_level_values(0)[j*3+3]
-                    filter_args = summary.index.get_level_values(1)[j*3+3]
+                    filter_name = summary.index.get_level_values(0)[j*5+5]
+                    filter_args = summary.index.get_level_values(1)[j*5+5]
                     summary = data_monitor(tdf, filter_name, filter_args, summary)
         if tdf.shape[0] == 0:
             continue
@@ -616,6 +626,7 @@ def run_parallel_home_location(row_group, filters, home_locations, summary, **kw
         return None
     else:
         filtered_tdf = pd.concat(filtered_tdfs) # create "full" aggregation type for home location calculation
+        print("Filtered entirely", filtered_tdf.shape)
 
     # calculate home locations via chosen method/s
     home_location_tdfs = []
@@ -625,6 +636,7 @@ def run_parallel_home_location(row_group, filters, home_locations, summary, **kw
     
     if len(home_location_tdfs) != 0:
         merged_data = pd.concat(home_location_tdfs)
+        print("Home calculated", merged_data.shape)
         merged_data = add_zipcode(merged_data, all_matches=False)
         return merged_data, summary
 
