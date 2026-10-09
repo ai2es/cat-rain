@@ -9,7 +9,7 @@ All commands run from the repository root with `PYTHONPATH=.` (scripts import `s
 
 ## Environment and data
 
-- Environment: `conda env create -f environment.yml` (`cat`). Steps 3, 5, and 9 need scikit-mobility;
+- Environment: `conda env create -f environment.yml` (`cat-demo`, Python 3.9). Steps 3, 5, and 9 need scikit-mobility;
   the other steps only need pandas, pyarrow, geopandas, xarray, pyproj, pyshp, and matplotlib.
 - Heavy steps run as casper CPU jobs: `paper/pbs/run_step.pbs` (scripts) and `paper/pbs/run_notebook.pbs`
   (notebooks). Pass `CONDA_ENV=<name>` with `qsub -v` to use another environment.

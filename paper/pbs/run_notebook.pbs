@@ -9,7 +9,7 @@
 #PBS -j oe
 cd "$PBS_O_WORKDIR"
 module load conda
-conda activate "${CONDA_ENV:-cat}"
+conda activate "${CONDA_ENV:-cat-demo}"
 export PYTHONPATH="$PBS_O_WORKDIR:$PYTHONPATH"
 export MPLBACKEND=Agg
 jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.kernel_name=python3 \

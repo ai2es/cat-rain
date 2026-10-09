@@ -1,8 +1,11 @@
-name: cat
+name: cat-demo
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
+  #- python=3.11
+  - python=3.9
+  - rtree
+  - scikit-mobility
   - setuptools
   - numpy<2
   - scipy
@@ -35,10 +38,14 @@ dependencies:
   - pygrib
   - pyshp
   - geopandas
-  # - fiona
-  # - pyproj urllib3 chardet markupsafe
+  - geopy
+  - urllib3
+  - chardet
+  - markupsafe
+  - haversine
+  - fiona=1.9.6
   - pip:
     - s3fs
     - plotly[express]
-    - git+https://github.com/scikit-mobility/scikit-mobility.git
+    # - git+https://github.com/scikit-mobility/scikit-mobility.git
     - .
