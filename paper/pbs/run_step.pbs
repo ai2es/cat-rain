@@ -1,0 +1,17 @@
+#!/bin/bash -l
+# Generic casper CPU job for one pipeline step. Submit from the repo root, e.g.
+#   qsub -v STEP="paper/scripts/04_tricounty_homes.py",CONFIG="paper/config/04_tricounty_homes.yaml" paper/pbs/run_step.pbs
+#   qsub -v STEP="scripts/calc_metrics.py",CONFIG="paper/config/05_daily_metrics.yaml" -l select=1:ncpus=36:mem=200GB -l walltime=24:00:00 paper/pbs/run_step.pbs
+# CONDA_ENV defaults to the "cat" environment from environment.yml (needs scikit-mobility for steps 3, 5, 9).
+#PBS -N cat_paper
+#PBS -A NAML0001
+#PBS -q casper@casper-pbs
+#PBS -l select=1:ncpus=8:mem=64GB
+#PBS -l walltime=04:00:00
+#PBS -j oe
+cd "$PBS_O_WORKDIR"
+module load conda
+conda activate "${CONDA_ENV:-cat}"
+export PYTHONPATH="$PBS_O_WORKDIR:$PYTHONPATH"
+export MPLBACKEND=Agg
+python -u "$STEP" -c "$CONFIG"

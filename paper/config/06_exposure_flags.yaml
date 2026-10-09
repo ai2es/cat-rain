@@ -1,0 +1,12 @@
+# Step 6: FFW and MRMS exposure at each device's home for the event days.
+analysis_ready_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data_20251121/"   # archived step 5 output
+metavars_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/analysis_ready_data_metavars/"
+mrms_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/analysis_ready_data_mrms/"
+ffw_cache_path: "paper/data/ffw/"
+start_date: "2024-03-27"
+end_date: "2024-04-01"
+# daily MRMS files from scripts/get_mrms_data.py (UTC-day aggregates of hourly values)
+mrms_daily_file: "/glade/campaign/cisl/aiml/cat_flood/mrms/raw/{variable}_{year}-03-15T00:00_{year}-04-30T00:00_daily_{aggregate}.nc"
+mrms_variables: ["MultiSensor_QPE_01H_Pass2_00.00", "FLASH_HP_MAXUNITSTREAMFLOW_00.00"]
+mrms_aggregates: ["max", "sum"]
+n_workers: 6

@@ -33,6 +33,8 @@ dependencies:
   - statsmodels
   - plotly
   - pygrib
+  - pyshp
+  - geopandas
   # - fiona
   # - pyproj urllib3 chardet markupsafe
   - pip:

@@ -1,0 +1,19 @@
+# Step 9: supermarket stays (settings of the 2026-10-08 full rerun used in the paper).
+chunked_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/chunked_data_2023_2024/"   # archived step 2 output
+daily_file_glob: "veraset_2024*_PST_chunked.parquet"
+poi_path: "/glade/campaign/cisl/aiml/cat_flood/ancillary_data/POIs/California_filtered_pois.geojson"
+county_shapefile: "/glade/campaign/cisl/aiml/cat_flood/ancillary_data/county_shapes/county_shapes.shp"
+counties: ["Los Angeles", "Ventura", "Santa Barbara"]
+poi_type: "supermarket"
+buffer_meters: 50
+run_window: "baseline"            # whole study period
+baseline_start: "2024-03-15"
+baseline_end: "2024-04-29 23:59:59"
+event_start: "2024-03-29"
+event_end: "2024-04-01 23:59:59"
+min_stop_minutes: 5.0
+spatial_radius_km: 0.05
+max_dwell_minutes: 720.0
+n_workers: 36                     # overridden by $NCPUS in PBS jobs
+batch_size: 5000                  # row groups per saved batch
+out_dir: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/poi/"

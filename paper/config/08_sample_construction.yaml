@@ -1,0 +1,11 @@
+# Step 8: sample-construction tables (inputs are the archived outputs used in the paper).
+key_file: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023_2024/key_file/id_row_group_key.parquet"
+home_loc_file: "/glade/campaign/cisl/aiml/cat_flood/home_locations_20251010/home_loc_by_row_group.parquet"
+home_loc_counties_file: "/glade/work/ggantos/cat-rain/notebooks/home_loc_by_row_group_counties.parquet"
+chunked_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/chunked_data_2023_2024/"
+analysis_ready_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data_20251121/"
+mrms_path: "/glade/campaign/cisl/aiml/cat_flood/analysis_ready_data_20251121_mrms/"
+out_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/tables/"
+saturdays: ["2024-03-16", "2024-03-23", "2024-03-30", "2024-04-06", "2024-04-13"]
+event_day: "2024-03-30"
+precip_thresholds_mm: [25, 38, 50]

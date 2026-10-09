@@ -77,3 +77,31 @@ def write_daily_chunked_data(daily_files, key_file, base_out_path):
             row_group = pa.Table.from_pandas(data.loc[found_ids])
             writer.write_table(row_group)
         writer.close()
+
+
+def write_daily_chunked_data_parallel(file, key_out_path, base_out_path):
+    """ Write out one daily file with row groups corresponding to each set of unique IDs.
+    Single-file version of write_daily_chunked_data for use with multiprocessing.Pool.map.
+    Args:
+        file (str): daily file path
+        key_out_path (str): Master key file with row groups corresponding to each set of unique IDs
+        base_out_path (str): output directory path
+    """
+    key = pq.ParquetFile(key_out_path)
+    n_row_groups = key.metadata.num_row_groups
+    out_file = join(base_out_path, file.split('/')[-1].split('.')[0] + "_chunked.parquet")
+    print(out_file)
+    table = pq.read_table(file)
+    data = table.to_pandas().reset_index().set_index('caid')
+    schema = pa.Table.from_pandas(data).schema
+    daily_ids = set(data.index)
+    writer = pq.ParquetWriter(out_file, schema)
+
+    for row_group in np.arange(n_row_groups):
+        ids = set(key.read_row_group(row_group).to_pandas().index)
+        found_ids = list(daily_ids.intersection(ids))
+        row_group = pa.Table.from_pandas(data.loc[found_ids])
+        writer.write_table(row_group)
+    writer.close()
+    print("Completed", out_file)
+    return 1

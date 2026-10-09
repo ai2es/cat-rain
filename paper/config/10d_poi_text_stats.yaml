@@ -1,0 +1,14 @@
+# Step 10d: numbers quoted in the supermarket results text.
+poi_dir: "/glade/work/dgagne/cat_poi_rerun_20261008/supermarket_baseline_all_row_groups"   # archived step 9 output
+ffw_json: "paper/data/ffw_LOX_20240328_20240331.json"
+mrms_hourly_file: "/glade/campaign/cisl/aiml/cat_flood/mrms/raw/MultiSensor_QPE_01H_Pass2_00.00_2024-03-27T00:00_2024-04-03T00:00.nc"
+county_shapefile: "/glade/campaign/cisl/aiml/cat_flood/ancillary_data/county_shapes/county_shapes"
+counties: ["Los Angeles", "Ventura", "Santa Barbara"]
+storm_day: "2024-03-30"
+hour_windows:              # inclusive local hours
+  "00-06": [0, 6]
+  "07-11": [7, 11]
+  "12-16": [12, 16]
+  "17-20": [17, 20]
+  "21-23": [21, 23]
+out_path: "paper/output/tables/"
