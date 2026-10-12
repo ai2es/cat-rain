@@ -136,3 +136,6 @@ notebooks/html/
 
 # Datasets
 Datasets/
+
+# outputs of the paper pipeline (figures, tables)
+paper/output/

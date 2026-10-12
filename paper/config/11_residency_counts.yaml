@@ -1,0 +1,7 @@
+# Step 11: residency-sample counts (response Table 4). Inputs are jcelis's archived outputs.
+residents_2024: "/glade/work/jcelis/mobility/data_products/Permanent_california_users_45dd.csv"
+residents_2023: "/glade/work/jcelis/mobility/data_products/Permanent_california_users_45dd_2023.csv"
+home_loc_file: "/glade/campaign/cisl/aiml/cat_flood/ancillary_data/home_locations/2024/TAO_filtered_home_loc_by_row_group.parquet"
+key_2023: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/chunked_data/2023/id_row_group_key.parquet"
+paired_analysis_notebook: "/glade/work/jcelis/code/jcelis/2.mobility_code/Modular_approach/output_test/Paired_Analysis.ipynb"
+out_file: "paper/output/tables/residency_counts.csv"

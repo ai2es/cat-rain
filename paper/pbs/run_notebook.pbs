@@ -1,0 +1,16 @@
+#!/bin/bash -l
+# Execute a paper notebook in place on casper. Submit from the repo root, e.g.
+#   qsub -v NOTEBOOK="paper/notebooks/10a_poi_hourly_figures.ipynb" paper/pbs/run_notebook.pbs
+#PBS -N cat_paper_nb
+#PBS -A NAML0001
+#PBS -q casper@casper-pbs
+#PBS -l select=1:ncpus=2:mem=64GB
+#PBS -l walltime=02:00:00
+#PBS -j oe
+cd "$PBS_O_WORKDIR"
+module load conda
+conda activate "${CONDA_ENV:-cat-demo}"
+export PYTHONPATH="$PBS_O_WORKDIR:$PYTHONPATH"
+export MPLBACKEND=Agg
+jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.kernel_name=python3 \
+    --ExecutePreprocessor.timeout=3600 "$NOTEBOOK"

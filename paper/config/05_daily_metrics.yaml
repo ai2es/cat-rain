@@ -1,0 +1,122 @@
+# Step 5: daily mobility metrics for tri-county residents (run with scripts/calc_metrics.py).
+# Same settings as config/process_conf.yaml used for analysis_ready_data_20251121 (saved copy in that directory);
+# only the home-location input and the output directory differ. The pipeline lists no filters, only measures.
+base_data_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/chunked_data_2023_2024/"
+data_prefix: "veraset"
+key_file: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023_2024/key_file/id_row_group_key.parquet"
+home_loc_file: "/glade/work/ggantos/cat-rain/notebooks/home_loc_by_row_group_counties.parquet"   # archived step 4 output (identical to ..._counties_unfiltered.parquet used in the run)
+geo_file: "/glade/work/cbecker/california_zip.geojson"
+save_out_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/analysis_ready_data/"
+start_date: "2023-03-15"
+end_date: "2024-04-29"
+days_of_week: "all" # Supports: "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" and "all"
+row_group_start_end: [] # empty [] will use all row groups [start, end]
+uids_final: null
+aggregation_type: "daily" # Supports "full" or "daily"; only applies to non_grouped_calcs
+n_workers: -1 # -1 to use all available CPU workers
+
+# (List) Should be keys under the "filters" or "measures"
+# Will operate sequentially in the defined order
+# Example: ["compress", "uncorrelated_entropy", "radius_of_gyration"]
+# Would result in compressing all the data with given args, then calculating the entropy and ROG
+# and merging the results. Filters apply one after another on the output of the previous filter result
+# Measures are calculated independently on the filter results (if any) and then merged together
+pipeline: ["number_of_visits", "distance_straight_line", "jump_lengths", "radius_of_gyration", "max_distance_from_home_static", "stay_locations_count"]
+
+grouped_analysis:
+  use: False # ignores "grouped" calculations if False
+  spatial_agg: ["zipcode"]
+  temporal_agg: ["date"] # Currently only supports "date"
+  stats: ["mean", "median", "sum"]
+
+########### HOME LOCATIONS ##########
+home_locations:
+  home_location_tao:
+      stop_radius_factor: 0.5
+      minutes_for_a_stop: 10.0
+      spatial_radius_km: 0.2
+      leaving_time: True
+      no_data_for_minutes: 1000000000000.0
+      min_speed_kmh: null
+      cluster_radius_km: 0.1
+      min_samples: 1
+
+########### FILTERING ##########
+filters:
+  min_pings_per_date_filter:
+    start_date: "2023-03-15"
+    end_date: "2023-04-29"
+    min_pings: 1
+
+  mobility_filter:
+    max_speed_kmh: 200.0
+    include_loops: False
+    speed_kmh: 5.0
+    max_loop: 6
+    ratio_max: 0.25
+
+  horizontal_accuracy_and_speed_filter:
+    max_horizontal_accuracy: 800
+    max_speed_kmh: 128.7
+
+  compress:
+    spatial_radius_km: 0.2
+
+
+########### INDIVIDUAL MEASURES ##########
+individual_measures:
+
+  number_of_visits:
+    show_progress: False
+    
+  distance_straight_line:
+    show_progress: False
+  
+  jump_lengths:
+    show_progress: False
+    merge: False
+  
+  radius_of_gyration:
+    show_progress: False
+
+  waiting_times:
+    show_progress: False
+
+  max_distance_from_home_static:
+    kwargs: None
+    
+  stay_locations_count:
+    stop_radius_factor: 0.5
+    minutes_for_a_stop: 20.0
+    spatial_radius_km: 0.2
+    leaving_time: False
+
+  real_entropy:
+    show_progress: False
+
+  uncorrelated_entropy:
+    normalize: False
+    show_progress: False
+
+##################### COLLECTIVE METRICS ###############
+collective_measures:
+  mean_square_displacement:
+    days: 0
+    hours: 1
+    minutes: 0
+    show_progress: False
+
+  random_location_entropy:
+    show_progress: False
+
+  uncorrelated_location_entropy:
+    normalize: False
+    show_progress: False
+
+
+
+
+
+
+
+

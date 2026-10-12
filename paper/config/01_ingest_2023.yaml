@@ -1,0 +1,6 @@
+# Step 1, 2023 period.
+raw_path: "/glade/campaign/cisl/aiml/cat_flood/movement_premium/"
+out_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/intermediate_data/2023/"
+start_date: "2023-03-15"
+end_date: "2023-04-30"
+n_workers: -1

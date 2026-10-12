@@ -1,0 +1,24 @@
+# Step 3: home locations from all 92 days pooled (copy of /glade/work/cbecker/cat-rain/config/calc_home.yml
+# as run on 2025-10-10; the paper used the output /glade/derecho/scratch/cbecker/CAT_home_loc_20251010/).
+data_prefix: "veraset"
+base_data_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/chunked_data_2023_2024/"
+key_file: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023_2024/key_file/id_row_group_key.parquet"
+geo_file: "/glade/work/cbecker/california_zip.geojson"
+save_out_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/home_locations/"
+start_date: "2023-03-15"
+end_date: "2024-04-29"
+days_of_week: "all"
+row_group_start_end: []    # empty uses all row groups
+aggregation_type: "full"   # pool all days per device
+n_workers: -1
+
+home_locations:
+  home_location_tao:
+    stop_radius_factor: 0.5
+    minutes_for_a_stop: 10.0
+    spatial_radius_km: 0.2
+    leaving_time: True
+    no_data_for_minutes: 1440
+    min_speed_kmh: null
+    cluster_radius_km: 0.1
+    min_samples: 1

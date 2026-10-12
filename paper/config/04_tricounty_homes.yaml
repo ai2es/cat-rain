@@ -1,0 +1,4 @@
+# Step 4: restrict home locations to the three study counties.
+home_loc_file: "/glade/campaign/cisl/aiml/cat_flood/home_locations_20251010/home_loc_by_row_group.parquet"   # archived step 3 output used in the paper (copy of cbecker CAT_home_loc_20251010)
+zips_counties_file: "config/zips_counties.yaml"
+out_file: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/home_locations/home_loc_by_row_group_counties.parquet"

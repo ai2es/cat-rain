@@ -1,0 +1,6 @@
+# Step 1, 2024 period. Run once more with 01_ingest_2023.yaml.
+raw_path: "/glade/campaign/cisl/aiml/cat_flood/movement_premium/"    # Veraset UTC day folders YYYY/MM/DD/
+out_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/intermediate_data/2024/"
+start_date: "2024-03-15"   # first UTC folder; also writes a partial local day 2024-03-14
+end_date: "2024-04-30"     # last UTC folder; last complete local day written is 2024-04-29
+n_workers: -1              # -1 uses all CPUs

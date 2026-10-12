@@ -36,6 +36,8 @@ dependencies:
   - statsmodels
   - plotly
   - pygrib
+  - pyshp
+  - geopandas
   - geopy
   - urllib3
   - chardet

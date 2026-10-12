@@ -1,0 +1,13 @@
+# Step 2: link the 92 analysis days, build the device key, and write device-cohort row groups.
+periods:
+  - daily_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2023/"
+    start_date: "2023-03-15"
+    end_date: "2023-04-29"
+  - daily_path: "/glade/campaign/cisl/aiml/cat_flood/intermediate_data/2024/"
+    start_date: "2024-03-15"
+    end_date: "2024-04-29"
+link_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/intermediate_data/2023_2024/"
+key_file: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/intermediate_data/2023_2024/key_file/id_row_group_key.parquet"
+chunked_path: "/glade/campaign/cisl/aiml/cat_flood/paper_pipeline/intermediate_data/chunked_data_2023_2024/"
+n_ids_per_row_group: 1000
+n_workers: 1
